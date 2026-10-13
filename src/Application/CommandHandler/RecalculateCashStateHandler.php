@@ -41,50 +41,16 @@ final readonly class RecalculateCashStateHandler
             return;
         }
 
-        // If recalculating for a specific payment, check if registry entry already exists
-        if ($command->payment !== null) {
-            $existingEntry = $this->registryRepository->findOneByPayment($command->payment);
-            if ($existingEntry !== null) {
-                $this->logger->info(
-                    'Registry entry already exists for payment ' . $command->payment->getId() . ', skipping recalculation'
-                );
-                return;
-            }
-        }
-
-        // If recalculating for a specific expense, check if registry entry already exists
-        if ($command->expense !== null) {
-            $existingEntry = $this->registryRepository->findOneByExpense($command->expense);
-            if ($existingEntry !== null) {
-                $this->logger->info(
-                    'Registry entry already exists for expense ' . $command->expense->getId() . ', skipping recalculation'
-                );
-                return;
-            }
+        if ($this->hasExistingRegistryEntry($command)) {
+            return;
         }
 
         // For full recalculation (no specific payment/expense), clean up existing duplicates
         if ($command->payment === null && $command->expense === null) {
-            $this->logger->info('Performing full recalculation to clean up any existing duplicates');
-            $removedCount = $this->registryRepository->removeDuplicates();
-            if ($removedCount > 0) {
-                $this->logger->info('Removed ' . $removedCount . ' duplicate registry entries');
-            }
+            $this->removeExistingDuplicates();
         }
 
-        // Determine the starting point for recalculation
-        $fromDate = $command->fromDate;
-
-        if ($command->payment !== null) {
-            $fromDate = $this->getPaymentDate($command->payment);
-        } elseif ($command->expense !== null) {
-            $fromDate = $command->expense->getSpentAt();
-        }
-
-        if ($fromDate === null) {
-            $this->logger->warning('No date found for recalculation, recalculating all');
-            $fromDate = new \DateTimeImmutable('1970-01-01');
-        }
+        $fromDate = $this->resolveFromDate($command);
 
         // Find the last registry entry before the from date to get the starting balance
         $lastRegistry = $this->registryRepository->findLastBeforeDate($fromDate);
@@ -106,7 +72,77 @@ final readonly class RecalculateCashStateHandler
 
         $this->logger->info('Processing ' . count($transactions) . ' transactions');
 
-        // Create registry entries for each transaction
+        $this->createRegistryEntries($transactions, $currentBalance);
+
+        $this->entityManager->flush();
+        $this->logger->info('RecalculateCashStateHandler completed');
+    }
+
+    /**
+     * When recalculating for a specific payment or expense, an existing registry entry means there is nothing to do.
+     */
+    private function hasExistingRegistryEntry(RecalculateCashState $command): bool
+    {
+        if ($command->payment !== null) {
+            $existingEntry = $this->registryRepository->findOneByPayment($command->payment);
+            if ($existingEntry !== null) {
+                $this->logger->info(
+                    'Registry entry already exists for payment ' . $command->payment->getId() . ', skipping recalculation'
+                );
+                return true;
+            }
+        }
+
+        if ($command->expense !== null) {
+            $existingEntry = $this->registryRepository->findOneByExpense($command->expense);
+            if ($existingEntry !== null) {
+                $this->logger->info(
+                    'Registry entry already exists for expense ' . $command->expense->getId() . ', skipping recalculation'
+                );
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function removeExistingDuplicates(): void
+    {
+        $this->logger->info('Performing full recalculation to clean up any existing duplicates');
+        $removedCount = $this->registryRepository->removeDuplicates();
+        if ($removedCount > 0) {
+            $this->logger->info('Removed ' . $removedCount . ' duplicate registry entries');
+        }
+    }
+
+    /**
+     * Determine the starting point for recalculation
+     */
+    private function resolveFromDate(RecalculateCashState $command): \DateTimeImmutable
+    {
+        $fromDate = $command->fromDate;
+
+        if ($command->payment !== null) {
+            $fromDate = $this->getPaymentDate($command->payment);
+        } elseif ($command->expense !== null) {
+            $fromDate = $command->expense->getSpentAt();
+        }
+
+        if ($fromDate === null) {
+            $this->logger->warning('No date found for recalculation, recalculating all');
+            $fromDate = new \DateTimeImmutable('1970-01-01');
+        }
+
+        return $fromDate;
+    }
+
+    /**
+     * Create registry entries for each transaction, carrying the running balance forward
+     *
+     * @param array<array{type: string, amount: Money, date: \DateTimeImmutable, payment?: Payment, expense?: ClassExpense}> $transactions
+     */
+    private function createRegistryEntries(array $transactions, Money $currentBalance): void
+    {
         foreach ($transactions as $transaction) {
             if ($transaction['type'] === 'income') {
                 $currentBalance = $currentBalance->plus($transaction['amount']);
@@ -136,9 +172,6 @@ final readonly class RecalculateCashStateHandler
                 $this->entityManager->persist($registry);
             }
         }
-
-        $this->entityManager->flush();
-        $this->logger->info('RecalculateCashStateHandler completed');
     }
 
     /**

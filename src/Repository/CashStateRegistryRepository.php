@@ -244,20 +244,38 @@ class CashStateRegistryRepository extends ServiceEntityRepository
      */
     public function removeDuplicates(): int
     {
-        $duplicates = $this->findDuplicates();
+        $paymentIds = [];
+        $expenseIds = [];
+        foreach ($this->findDuplicates() as $duplicate) {
+            if ($duplicate['type'] === 'payment') {
+                $paymentIds[] = $duplicate['entity_id'];
+            } else {
+                $expenseIds[] = $duplicate['entity_id'];
+            }
+        }
+
+        // Load all duplicated entries with one query per type instead of one query per duplicated payment/expense
+        /** @var array<string, list<CashStateRegistry>> $groups */
+        $groups = [];
+        if ($paymentIds !== []) {
+            foreach ($this->findBy([
+                'payment' => $paymentIds,
+            ]) as $entry) {
+                $groups['payment:' . $entry->getPayment()?->getId()->toRfc4122()][] = $entry;
+            }
+        }
+
+        if ($expenseIds !== []) {
+            foreach ($this->findBy([
+                'expense' => $expenseIds,
+            ]) as $entry) {
+                $groups['expense:' . $entry->getExpense()?->getId()->toRfc4122()][] = $entry;
+            }
+        }
+
         $removedCount = 0;
 
-        foreach ($duplicates as $duplicate) {
-            if ($duplicate['type'] === 'payment') {
-                $entries = $this->findBy([
-                    'payment' => $duplicate['entity_id'],
-                ]);
-            } else {
-                $entries = $this->findBy([
-                    'expense' => $duplicate['entity_id'],
-                ]);
-            }
-
+        foreach ($groups as $entries) {
             // Sort by creation date (newest first)
             usort($entries, fn($a, $b) => $b->getCreatedAt() <=> $a->getCreatedAt());
 

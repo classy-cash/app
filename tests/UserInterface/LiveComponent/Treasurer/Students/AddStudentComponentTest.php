@@ -95,6 +95,74 @@ class AddStudentComponentTest extends FunctionalTestCase
         $this->assertTrue($parents->contains($parent2));
     }
 
+    public function testAddStudentLinksSelectedParentsAndIgnoresUnknownOnes(): void
+    {
+        $this->createClassRoom('4B');
+        $parent1 = $this->createUser('parent1@example.com', 'password');
+        $parent2 = $this->createUser('parent2@example.com', 'password');
+        $parent1Id = (int) $parent1->getId();
+        $parent2Id = (int) $parent2->getId();
+        $unknownId = max($parent1Id, $parent2Id) + 1000;
+
+        $testComponent = $this->createLiveComponent(AddStudentComponent::class);
+        foreach ([$parent2Id, $unknownId, $parent1Id] as $userId) {
+            $testComponent->call('addParent', [
+                'userId' => $userId,
+            ]);
+        }
+
+        $testComponent->submitForm([
+            'form' => [
+                'firstName' => 'Jan',
+                'lastName' => 'Kowalski',
+            ],
+        ], 'addStudent');
+
+        // A successful submission resets the form state
+        /** @var AddStudentComponent $component */
+        $component = $testComponent->component();
+        $this->assertSame([], $component->selectedParents);
+
+        $this->getEntityManager()
+            ->clear();
+        $student = $this->getEntityManager()
+            ->getRepository(Student::class)
+            ->findOneBy([
+                'firstName' => 'Jan',
+                'lastName' => 'Kowalski',
+            ]);
+
+        $this->assertNotNull($student);
+        $parentIds = array_map(static fn($parent) => $parent->getId(), $student->getParents()->toArray());
+        sort($parentIds);
+        $this->assertSame([$parent1Id, $parent2Id], $parentIds);
+    }
+
+    public function testAddStudentWithoutParentsCreatesStudent(): void
+    {
+        $this->createClassRoom('4B');
+
+        $testComponent = $this->createLiveComponent(AddStudentComponent::class);
+        $testComponent->submitForm([
+            'form' => [
+                'firstName' => 'Ewa',
+                'lastName' => 'Nowak',
+            ],
+        ], 'addStudent');
+
+        $this->getEntityManager()
+            ->clear();
+        $student = $this->getEntityManager()
+            ->getRepository(Student::class)
+            ->findOneBy([
+                'firstName' => 'Ewa',
+                'lastName' => 'Nowak',
+            ]);
+
+        $this->assertNotNull($student);
+        $this->assertCount(0, $student->getParents());
+    }
+
     public function testComponentEmitsStudentAddedEvent(): void
     {
         $this->markTestSkipped(

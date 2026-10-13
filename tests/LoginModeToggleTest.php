@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests;
 
-use Symfony\Component\DomCrawler\Crawler;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\UX\LiveComponent\Test\InteractsWithLiveComponents;
@@ -172,46 +171,27 @@ class LoginModeToggleTest extends WebTestCase
 
         $crawler = $testComponent->render();
 
-        // Check that the form has the correct structure
+        // The form submits through the LiveComponent "save" action
         $form = $crawler->crawler()
             ->filter('form');
-        $this->assertGreaterThan(0, $form->count());
+        $this->assertCount(1, $form);
+        $this->assertSame('live#action:prevent', $form->attr('data-action'));
+        $this->assertSame('save', $form->attr('data-live-action-param'));
 
-        // Debug: check what attributes the form actually has
-        $formHtml = $form->outerHtml();
-        $this->assertStringContainsString('space-y-5', $formHtml, 'Form should contain space-y-5 class');
-
-        // Check that email field has correct structure
+        // Email field lives in its own spaced container, and the password container is not rendered yet
         $emailContainer = $crawler->crawler()
-            ->filter('div:contains("Adres Email")')
-            ->closest('div');
-        assert($emailContainer instanceof Crawler);
-        $this->assertGreaterThan(0, $emailContainer->count());
-
-        // Debug: check what attributes the email container actually has
-        $emailContainerHtml = $emailContainer->outerHtml();
-        $this->assertStringContainsString(
-            'space-y-5',
-            $emailContainerHtml,
-            'Email container should contain space-y-5 class'
-        );
+            ->filter('form div.space-y-5:contains("Adres Email")');
+        $this->assertCount(1, $emailContainer);
+        $this->assertCount(1, $emailContainer->filter('input[name*="email"]'));
+        $this->assertCount(0, $crawler->crawler()->filter('form div.mt-5:contains("Hasło")'));
 
         // Toggle to password mode and check password field structure
         $testComponent->call('togglePassword');
         $crawler = $testComponent->render();
 
         $passwordContainer = $crawler->crawler()
-            ->filter('div:contains("Hasło")')
-            ->closest('div');
-        assert($passwordContainer instanceof Crawler);
-        $this->assertGreaterThan(0, $passwordContainer->count());
-
-        // Debug: check what attributes of password container actually has
-        $passwordContainerHtml = $passwordContainer->outerHtml();
-        $this->assertStringContainsString(
-            'mt-5',
-            $passwordContainerHtml,
-            'Password container should contain mt-5 class'
-        );
+            ->filter('form div.mt-5:contains("Hasło")');
+        $this->assertCount(1, $passwordContainer);
+        $this->assertCount(1, $passwordContainer->filter('input[name*="password"]'));
     }
 }

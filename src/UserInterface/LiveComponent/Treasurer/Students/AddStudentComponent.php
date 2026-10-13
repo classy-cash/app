@@ -130,10 +130,21 @@ class AddStudentComponent extends AbstractController
                 ->getData();
 
             // Link parents
-            foreach ($this->selectedParents as $parentId) {
-                $parent = $this->users->find($parentId);
-                if ($parent) {
-                    $student->addParent($parent);
+            if ($this->selectedParents !== []) {
+                $parents = [];
+                foreach ($this->users->findBy([
+                    'id' => $this->selectedParents,
+                ]) as $parent) {
+                    $id = $parent->getId();
+                    if ($id !== null) {
+                        $parents[$id] = $parent;
+                    }
+                }
+
+                foreach ($this->selectedParents as $parentId) {
+                    if (isset($parents[$parentId])) {
+                        $student->addParent($parents[$parentId]);
+                    }
                 }
             }
 

@@ -31,14 +31,24 @@ final readonly class TransferPaymentMatcher
 
     public function matchByPaymentCode(Transfer $transfer): ?Payment
     {
-        foreach ($this->tokenizeTitle($transfer->title) as $word) {
-            $paymentCode = $this->entityManager->getRepository(PaymentCode::class)
-                ->findOneBy([
-                    'code' => $word,
-                ]);
+        // Keep the candidate order produced by the tokenizer (the first matching candidate wins),
+        // but resolve all of them with a single query instead of one query per candidate.
+        $candidates = array_values(array_unique(iterator_to_array($this->tokenizeTitle($transfer->title), false)));
+        if ($candidates === []) {
+            return null;
+        }
 
-            if ($paymentCode) {
-                return $paymentCode->getPayment();
+        /** @var array<string, PaymentCode> $paymentCodes */
+        $paymentCodes = [];
+        foreach ($this->entityManager->getRepository(PaymentCode::class)->findBy([
+            'code' => $candidates,
+        ]) as $paymentCode) {
+            $paymentCodes[$paymentCode->getCode()] = $paymentCode;
+        }
+
+        foreach ($candidates as $candidate) {
+            if (isset($paymentCodes[$candidate])) {
+                return $paymentCodes[$candidate]->getPayment();
             }
         }
 
