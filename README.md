@@ -126,6 +126,20 @@ Przed wdrożeniem upewnij się, że domena jest skonfigurowana w panelu Cytrus. 
 
 ---
 
+### Tryb przerwy technicznej
+
+Przed planowanymi pracami na bazie lub infrastrukturze uruchom workflow **Enable Maintenance Mode**
+(zakładka Actions, opcjonalnie z tekstem „Wracamy: …”). Podmienia on kontener `classy-cash` na statyczną
+zaślepkę nginx w stylu aplikacji, na tym samym adresie i porcie, odpowiadającą na każde żądanie kodem `503`
+z `Retry-After`.
+
+Nie potrzebuje budowania obrazu, logowania do GHCR, `.env` ani bazy. Wykonuje ten sam krok Cytrus +
+Cloudflare co zwykły deploy (bez nich strona i tak byłaby niedostępna), więc wymaga tych samych sekretów
+routingu. Każdy zwykły deploy zapisuje obraz nginx w cache na hoście.
+
+Wyjście z trybu przerwy: uruchom ponownie ostatni run **Production Build and Deploy** (zwykły deploy zastępuje
+zaślepkę). W trakcie przerwy nie wypychaj nowych tagów, bo każdy tag wdraża aplikację ponownie.
+
 ## 📄 Licencja
 
 Projekt udostępniany jest na licencji **MIT**. Szczegóły znajdują się w pliku LICENSE.

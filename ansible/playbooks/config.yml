@@ -4,6 +4,9 @@ apps:
   - name: classy-cash
     domain: skarbiec.mleczki.pl
     port: 9501
+    # Static placeholder used by playbooks/maintenance.yml (pre-pulled by every regular deploy,
+    # so enabling maintenance mode never depends on Docker Hub being reachable).
+    maintenance_image: nginx:1.29-alpine
     image: ghcr.io/mleczakm/classy-cash:{{ app_version | default('latest') }}
     env:
       APP_ENV: prod
