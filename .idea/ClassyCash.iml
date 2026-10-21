@@ -210,6 +210,20 @@
       <excludeFolder url="file://$MODULE_DIR$/vendor/swoole-bundle/z-engine" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/symfony/contracts" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/symfony/polyfill-php86" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/mleczakm/zip-bomb-honeypot" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/deptrac/deptrac" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/doctrine/doctrine-migrations-bundle" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/doctrine/migrations" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/league/uri" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/league/uri-interfaces" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/mleczakm/swoole-bundle-observability" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/mleczakm/swoole-bundle-scheduler" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/phpdocumentor/graphviz" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/shipmonk/composer-dependency-analyser" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/symfony/html-sanitizer" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/symfony/polyfill-deepclone" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/tales-from-a-dev/tailwind-merge-php" />
+      <excludeFolder url="file://$MODULE_DIR$/vendor/twig/html-extra" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
