@@ -1,0 +1,18 @@
+{{define "layout_parent"}}<!DOCTYPE html>
+<html lang="pl"><head>{{template "head" .}}</head>
+<body class="parent-body">
+<a class="skip-link" href="#main">Przejdź do treści</a>
+{{template "demo_banner" .}}
+<div class="parent-frame">
+  <main id="main" class="parent-main">
+    {{template "flashes" .}}
+    {{template "content" .}}
+  </main>
+  <nav class="bottom-nav" aria-label="Menu rodzica">
+    <a class="bn {{if eq .Active "home"}}active{{end}}" href="/" {{if eq .Active "home"}}aria-current="page"{{end}}><span class="bn-ico" aria-hidden="true">⌂</span><span>Start</span></a>
+    {{if .IsManager}}<a class="bn" href="/treasurer/dashboard"><span class="bn-ico" aria-hidden="true">▦</span><span>Skarbnik</span></a>{{end}}
+    <a class="bn {{if eq .Active "profile"}}active{{end}}" href="/profile" {{if eq .Active "profile"}}aria-current="page"{{end}}><span class="bn-ico" aria-hidden="true">☺</span><span>Profil</span></a>
+  </nav>
+</div>
+{{template "scripts"}}
+</body></html>{{end}}

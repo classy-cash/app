@@ -1,0 +1,10 @@
+{{define "content"}}
+<header class="page-head"><div><h1 class="serif">Wiadomości wychodzące</h1><p class="muted">Tryb wysyłki: <strong>{{.Data.Driver}}</strong>. Oczekujące: {{.Data.Stats.Pending}}, nieudane: {{.Data.Stats.Failed}}.</p></div></header>
+<section class="card">
+  {{if eq .Data.Driver "capture"}}<p class="alert alert-info"><span class="alert-icon" aria-hidden="true">i</span><span>Wiadomości nie opuszczają serwera — poniżej możesz je podejrzeć (łącznie z linkami logowania).</span></p>{{end}}
+  <div class="table-wrap"><table class="table responsive"><thead><tr><th scope="col">Data</th><th scope="col">Do</th><th scope="col">Temat</th><th scope="col">Status</th></tr></thead><tbody>
+  {{range .Data.Mail}}<tr><td data-label="Data">{{datetime .CreatedAt}}</td><td data-label="Do">{{.ToEmail}}</td><td data-label="Temat"><a class="link" href="/admin/mail/{{.ID}}">{{.Subject}}</a></td>
+  <td data-label="Status">{{if eq .Status "sent"}}<span class="badge badge-ok">✓ Wysłana</span>{{else if eq .Status "captured"}}<span class="badge badge-info">Zapisana lokalnie</span>{{else if eq .Status "failed"}}<span class="badge badge-danger">✕ Nieudana</span>{{if .LastError}}<p class="small muted">{{.LastError}}</p>{{end}}{{else}}<span class="badge badge-warn">… W kolejce</span>{{if .LastError}}<p class="small muted">{{.LastError}}</p>{{end}}{{end}}</td></tr>
+  {{else}}<tr><td colspan="4" class="empty">Brak wiadomości</td></tr>{{end}}</tbody></table></div>
+</section>
+{{end}}

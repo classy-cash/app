@@ -1,0 +1,5 @@
+{{define "content"}}
+<h1 class="serif">Potwierdź logowanie</h1>
+<p>Kliknij przycisk, aby zalogować się na swoje konto. Link zadziała tylko raz.</p>
+<form method="post" action="/login/link/{{.Data.Token}}">{{template "csrf" .CSRF}}<button class="btn btn-primary btn-block" type="submit">Zaloguj mnie</button></form>
+{{end}}

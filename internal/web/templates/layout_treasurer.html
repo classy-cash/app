@@ -1,0 +1,47 @@
+{{define "layout_treasurer"}}<!DOCTYPE html>
+<html lang="pl"><head>{{template "head" .}}</head>
+<body>
+<a class="skip-link" href="#main">Przejdź do treści</a>
+{{template "demo_banner" .}}
+<header class="topbar">
+  <button class="icon-btn" type="button" data-toggle-sidebar aria-label="Otwórz menu" aria-controls="sidebar" aria-expanded="false">☰</button>
+  {{template "logo"}}
+</header>
+<aside id="sidebar" class="sidebar" aria-label="Menu skarbnika">
+  <div class="sidebar-top">
+    {{template "logo"}}
+    {{if gt (len .Classes) 1}}
+    <form method="post" action="/class/switch" class="class-switch">{{template "csrf" .CSRF}}
+      <label class="label" for="class_id">Klasa</label>
+      <select class="input" id="class_id" name="class_id" data-autosubmit>{{$cur := .Class}}{{range .Classes}}<option value="{{.ID}}" {{if eq .ID $cur.ID}}selected{{end}}>{{.Name}}</option>{{end}}</select>
+    </form>
+    {{else if .Class}}<p class="class-name">{{.Class.Name}}</p>{{end}}
+    <nav>
+      <a class="nav-link {{if eq .Active "dashboard"}}active{{end}}" href="/treasurer/dashboard" {{if eq .Active "dashboard"}}aria-current="page"{{end}}><span class="ico" aria-hidden="true">▦</span>Panel główny</a>
+      <a class="nav-link nav-parent" href="/parent"><span class="ico" aria-hidden="true">⌂</span>Mój widok rodzica</a>
+      <p class="nav-group">Zarządzanie</p>
+      <a class="nav-link {{if eq .Active "payments"}}active{{end}}" href="/treasurer/payments" {{if eq .Active "payments"}}aria-current="page"{{end}}><span class="ico" aria-hidden="true">₪</span>Operacje bankowe</a>
+      <a class="nav-link {{if eq .Active "contributions"}}active{{end}}" href="/treasurer/contributions" {{if eq .Active "contributions"}}aria-current="page"{{end}}><span class="ico" aria-hidden="true">☰</span>Zarządzaj składkami</a>
+      <a class="nav-link {{if eq .Active "students"}}active{{end}}" href="/treasurer/students" {{if eq .Active "students"}}aria-current="page"{{end}}><span class="ico" aria-hidden="true">☺</span>Uczniowie i rodzice</a>
+      <a class="nav-link {{if eq .Active "manual"}}active{{end}}" href="/treasurer/manual-transactions" {{if eq .Active "manual"}}aria-current="page"{{end}}><span class="ico" aria-hidden="true">+</span>Kasa ręczna</a>
+      <a class="nav-link {{if eq .Active "settings"}}active{{end}}" href="/treasurer/settings" {{if eq .Active "settings"}}aria-current="page"{{end}}><span class="ico" aria-hidden="true">⚙</span>Ustawienia</a>
+      {{if .User.IsAdmin}}
+      <p class="nav-group">Administrator</p>
+      <a class="nav-link {{if eq .Active "classes"}}active{{end}}" href="/admin/classes" {{if eq .Active "classes"}}aria-current="page"{{end}}><span class="ico" aria-hidden="true">❖</span>Klasy</a>
+      <a class="nav-link {{if eq .Active "mail"}}active{{end}}" href="/admin/mail" {{if eq .Active "mail"}}aria-current="page"{{end}}><span class="ico" aria-hidden="true">✉</span>Wiadomości</a>
+      {{end}}
+    </nav>
+  </div>
+  <div class="sidebar-user">
+    <div class="avatar" aria-hidden="true">{{initial .User.Name}}</div>
+    <div><p class="user-name">{{.User.Name}}</p><p class="user-role">{{if .User.IsAdmin}}Administrator{{else}}Skarbnik{{end}}</p></div>
+    <form method="post" action="/logout">{{template "csrf" .CSRF}}<button class="link-btn danger" type="submit">Wyloguj się</button></form>
+  </div>
+</aside>
+<div class="sidebar-backdrop" data-toggle-sidebar hidden></div>
+<main id="main" class="content">
+  {{template "flashes" .}}
+  {{template "content" .}}
+</main>
+{{template "scripts"}}
+</body></html>{{end}}

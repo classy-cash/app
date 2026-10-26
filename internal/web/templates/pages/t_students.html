@@ -1,0 +1,62 @@
+{{define "content"}}
+<header class="page-head"><div><h1 class="serif">Uczniowie i rodzice</h1><p class="muted">Zarządzaj danymi uczniów i łącz wiele kont rodziców z jednym dzieckiem.</p></div>
+  <button class="btn btn-primary" type="button" data-open="add-student">Dodaj ucznia</button></header>
+<section class="card" aria-labelledby="roster-h">
+  <h2 id="roster-h" class="h3">Lista uczniów {{.Class.Name}}</h2>
+  <ul class="list student-list">
+  {{range .Data.Students}}
+    <li class="student">
+      <div class="student-head">
+        <span class="avatar" aria-hidden="true">{{.Initials}}</span>
+        <div><p class="strong">{{.FullName}}</p><p class="small muted">{{len .Parents}} {{if eq (len .Parents) 1}}konto rodzica{{else}}kont rodziców{{end}}</p></div>
+        <div class="row-actions">
+          <button class="btn btn-outline btn-sm" type="button" data-open="edit-{{.ID}}">Edytuj dane</button>
+        </div>
+      </div>
+      <ul class="parents">
+        {{$sid := .ID}}{{range .Parents}}<li><span>{{.Name}} <span class="muted">({{.Email}})</span></span>
+          <form method="post" action="/treasurer/students/{{$sid}}/parents/{{.ID}}/remove" class="inline" data-confirm="Odłączyć {{.Name}} od ucznia?">{{template "csrf" $.CSRF}}<button class="btn btn-ghost btn-sm danger" type="submit" aria-label="Odłącz {{.Name}}">Odłącz</button></form></li>
+        {{else}}<li class="muted">Brak podpiętych kont rodziców</li>{{end}}
+      </ul>
+      <form method="post" action="/treasurer/students/{{.ID}}/parents" class="parent-add">
+        {{template "csrf" $.CSRF}}
+        <label class="visually-hidden" for="pe-{{.ID}}">E-mail rodzica</label><input class="input" id="pe-{{.ID}}" name="email" type="email" placeholder="e-mail rodzica" list="members" required>
+        <label class="visually-hidden" for="pn-{{.ID}}">Imię i nazwisko rodzica</label><input class="input" id="pn-{{.ID}}" name="name" placeholder="imię i nazwisko (dla nowego konta)">
+        <button class="btn btn-outline btn-sm" type="submit">Dodaj rodzica</button>
+      </form>
+      <dialog id="edit-{{.ID}}" class="modal" aria-labelledby="edit-t-{{.ID}}"><div class="modal-body">
+        <button class="icon-btn modal-close" type="button" data-close aria-label="Zamknij">×</button>
+        <h2 class="serif" id="edit-t-{{.ID}}">Edytuj ucznia</h2>
+        <form method="post" action="/treasurer/students/{{.ID}}/edit" class="stack">{{template "csrf" $.CSRF}}
+          <div class="field"><label class="label" for="ef-{{.ID}}">Imię</label><input class="input" id="ef-{{.ID}}" name="first_name" value="{{.FirstName}}" required></div>
+          <div class="field"><label class="label" for="el-{{.ID}}">Nazwisko</label><input class="input" id="el-{{.ID}}" name="last_name" value="{{.LastName}}" required></div>
+          <div class="actions"><button class="btn btn-ghost" type="button" data-close>Anuluj</button><button class="btn btn-primary" type="submit">Zapisz</button></div>
+        </form></div></dialog>
+    </li>
+  {{else}}<li class="empty">Brak uczniów w klasie</li>{{end}}
+  </ul>
+  {{if gt (len .Data.Students) 1}}<p><button class="btn btn-outline" type="button" data-open="merge">Połącz uczniów</button></p>{{end}}
+</section>
+
+<datalist id="members"></datalist>
+<dialog id="add-student" class="modal" aria-labelledby="as-t"><div class="modal-body">
+  <button class="icon-btn modal-close" type="button" data-close aria-label="Zamknij">×</button>
+  <h2 class="serif" id="as-t">Dodaj ucznia</h2>
+  <p class="muted">Wprowadź dane nowego dziecka do klasy {{.Class.Name}}.</p>
+  <form method="post" action="/treasurer/students" class="stack">{{template "csrf" .CSRF}}
+    <div class="field"><label class="label" for="as-f">Imię</label><input class="input" id="as-f" name="first_name" minlength="2" maxlength="100" required></div>
+    <div class="field"><label class="label" for="as-l">Nazwisko</label><input class="input" id="as-l" name="last_name" minlength="2" maxlength="100" required></div>
+    <div class="field"><label class="label" for="as-p">Rodzice (opcjonalnie)</label><textarea class="input" id="as-p" name="parent_emails" rows="2" placeholder="adresy e-mail, rozdzielone przecinkami"></textarea><p class="small muted">Nowe konta dostaną zaproszenie z linkiem do logowania.</p></div>
+    <div class="actions"><button class="btn btn-ghost" type="button" data-close>Anuluj</button><button class="btn btn-primary" type="submit">Dodaj ucznia</button></div>
+  </form></div></dialog>
+
+<dialog id="merge" class="modal" aria-labelledby="mg-t"><div class="modal-body">
+  <button class="icon-btn modal-close" type="button" data-close aria-label="Zamknij">×</button>
+  <h2 class="serif" id="mg-t">Połącz uczniów</h2>
+  <form method="post" action="/treasurer/students/merge" class="stack" data-confirm="Połączyć uczniów? Tej operacji nie można cofnąć.">{{template "csrf" .CSRF}}
+    <div class="field"><label class="label" for="keep">Uczeń do zachowania (główny)</label><select class="input" id="keep" name="keep_student_id" required><option value="">Wybierz ucznia…</option>{{range .Data.Students}}<option value="{{.ID}}">{{.FullName}}</option>{{end}}</select></div>
+    <div class="field"><label class="label" for="del">Uczeń do usunięcia (duplikat)</label><select class="input" id="del" name="delete_student_id" required><option value="">Wybierz ucznia…</option>{{range .Data.Students}}<option value="{{.ID}}">{{.FullName}}</option>{{end}}</select></div>
+    <p class="alert alert-info"><span class="alert-icon" aria-hidden="true">!</span><span>Płatności i konta rodziców zostaną przeniesione do ucznia głównego. Uczeń duplikat zostanie oznaczony jako usunięty.</span></p>
+    <div class="actions"><button class="btn btn-ghost" type="button" data-close>Anuluj</button><button class="btn btn-primary" type="submit">Połącz uczniów</button></div>
+  </form></div></dialog>
+{{end}}

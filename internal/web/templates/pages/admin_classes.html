@@ -1,0 +1,11 @@
+{{define "content"}}
+<header class="page-head"><div><h1 class="serif">Klasy</h1><p class="muted">Każda klasa ma własnego skarbnika, uczniów, składki i kasę.</p></div></header>
+<section class="card"><div class="table-wrap"><table class="table responsive"><thead><tr><th scope="col">Klasa</th><th scope="col">Szkoła</th><th scope="col">Skarbnik</th></tr></thead><tbody>
+{{range .Data.Rows}}<tr><td data-label="Klasa" class="strong">{{.Class.Name}}</td><td data-label="Szkoła">{{.Class.SchoolName}}</td><td data-label="Skarbnik">{{if .Treasurer}}{{.Treasurer}}{{else}}<span class="muted">brak</span>{{end}}</td></tr>{{end}}</tbody></table></div></section>
+<section class="card" aria-labelledby="nc-h"><h2 id="nc-h" class="h3">Nowa klasa</h2>
+<form method="post" action="/admin/classes" class="stack">{{template "csrf" .CSRF}}
+  <div class="grid-3"><div class="field"><label class="label" for="name">Nazwa klasy</label><input class="input" id="name" name="name" required></div>
+  <div class="field"><label class="label" for="tn">Skarbnik — imię i nazwisko</label><input class="input" id="tn" name="treasurer_name"></div>
+  <div class="field"><label class="label" for="te">Skarbnik — e-mail</label><input class="input" id="te" name="treasurer_email" type="email"></div></div>
+  <div class="actions"><button class="btn btn-primary" type="submit">Utwórz klasę</button></div></form></section>
+{{end}}

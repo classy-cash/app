@@ -1,0 +1,7 @@
+{{define "content"}}
+<section class="card center narrow">
+  <h1 class="serif">{{if eq .Data.Status 404}}Nie znaleziono strony{{else if eq .Data.Status 403}}Brak dostępu{{else}}Coś poszło nie tak{{end}}</h1>
+  <p>{{.Data.Message}}</p>
+  <p><a class="btn btn-primary" href="/">Wróć na stronę główną</a></p>
+</section>
+{{end}}

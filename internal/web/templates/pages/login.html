@@ -1,0 +1,37 @@
+{{define "content"}}
+<p class="eyebrow">Witaj w klasie</p>
+<h1 class="serif">Zaloguj się</h1>
+<p class="muted">Dostęp do Twojego portfela klasowego.</p>
+{{if .Data.Error}}<div class="alert alert-error" role="alert"><span class="alert-icon" aria-hidden="true">!</span><span>{{.Data.Error}}</span></div>{{end}}
+{{if .Data.Password}}
+<form method="post" action="/login" class="stack" novalidate>
+  {{template "csrf" .CSRF}}
+  <div class="field"><label class="label" for="email">Adres e-mail</label>
+  <input class="input" id="email" name="email" type="email" autocomplete="username" placeholder="twoj@email.com" value="{{.Data.Email}}" required autofocus></div>
+  <div class="field"><div class="label-row"><label class="label" for="password">Hasło</label><a class="small" href="/reset-password">Nie pamiętasz hasła?</a></div>
+  <input class="input" id="password" name="password" type="password" autocomplete="current-password" required></div>
+  <button class="btn btn-primary btn-block" type="submit">Zaloguj się</button>
+</form>
+<p class="center"><a class="link" href="/login">Zaloguj się linkiem e-mail</a></p>
+{{else}}
+<form method="post" action="/login/link" class="stack" novalidate>
+  {{template "csrf" .CSRF}}
+  <div class="field"><label class="label" for="email">Adres e-mail</label>
+  <input class="input" id="email" name="email" type="email" autocomplete="username" placeholder="twoj@email.com" value="{{.Data.Email}}" required autofocus></div>
+  <button class="btn btn-primary btn-block" type="submit">Wyślij link logowania</button>
+  <p class="small muted">Wyślemy jednorazowy link, który zalogowuje bez hasła.</p>
+</form>
+<p class="center"><a class="link" href="/login?mode=password">Zaloguj się hasłem</a></p>
+{{end}}
+{{if .Data.Demo}}
+<div class="demo-login">
+  <h2 class="h3">Konta demonstracyjne</h2>
+  <p class="small muted">Wybierz rolę, aby od razu obejrzeć aplikację.</p>
+  <div class="demo-accounts">
+  {{range .Data.Demo}}<form method="post" action="/demo/login">{{template "csrf" $.CSRF}}<input type="hidden" name="email" value="{{.Email}}"><button class="btn btn-outline btn-block" type="submit">{{.Label}}{{if .Role}} <span class="muted">· {{.Role}}</span>{{end}}</button></form>{{end}}
+  </div>
+</div>
+{{else}}
+<p class="center small muted">Nie masz konta? {{if .Data.Registration}}<a class="link" href="/register">Dołącz jako rodzic</a>{{else}}Poproś skarbnika klasy o zaproszenie.{{end}}</p>
+{{end}}
+{{end}}

@@ -1,0 +1,7 @@
+{{define "content"}}
+<h1 class="serif">Sprawdź skrzynkę</h1>
+<p>Jeśli konto <strong>{{.Data.Email}}</strong> istnieje, wysłaliśmy na ten adres jednorazowy link do logowania. Jest ważny przez godzinę.</p>
+{{if .Data.WebmailURL}}<p><a class="btn btn-accent btn-block" href="{{.Data.WebmailURL}}" rel="noopener noreferrer" target="_blank">Otwórz {{.Data.WebmailName}}</a></p>{{end}}
+{{if .Data.Capture}}<p class="alert alert-info"><span class="alert-icon" aria-hidden="true">i</span><span>Ta instalacja nie wysyła prawdziwej poczty. Wiadomość zapisano lokalnie — administrator zobaczy ją w sekcji „Wiadomości”.</span></p>{{end}}
+<p class="small muted">Nie dotarło? Sprawdź folder spam albo <a class="link" href="/login">poproś o nowy link</a>.</p>
+{{end}}

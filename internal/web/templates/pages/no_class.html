@@ -1,0 +1,7 @@
+{{define "content"}}
+<section class="parent-section">
+  <h1 class="serif">Witaj w Classy Cash</h1>
+  <p>Twoje konto nie jest jeszcze przypisane do żadnej klasy. Poproś skarbnika, aby dodał Cię jako rodzica ucznia.</p>
+  <form method="post" action="/logout">{{template "csrf" .CSRF}}<button class="btn btn-outline" type="submit">Wyloguj się</button></form>
+</section>
+{{end}}

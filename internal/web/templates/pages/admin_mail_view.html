@@ -1,0 +1,5 @@
+{{define "content"}}
+<header class="page-head"><div><h1 class="serif">{{.Data.Mail.Subject}}</h1><p class="muted">Do: {{.Data.Mail.ToEmail}} · {{datetime .Data.Mail.CreatedAt}}</p></div><a class="btn btn-outline" href="/admin/mail">Wróć</a></header>
+<section class="card"><h2 class="h3">Treść tekstowa</h2><pre class="mail-text">{{.Data.Mail.Text}}</pre>
+<p class="small muted">Wersja HTML nie jest renderowana w aplikacji ze względów bezpieczeństwa.</p></section>
+{{end}}

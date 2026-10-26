@@ -1,0 +1,34 @@
+{{define "head"}}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#1a2a52">
+<meta name="csrf" content="{{.CSRF}}">
+<title>{{.Title}} — {{.AppName}}</title>
+<link rel="icon" type="image/svg+xml" href="/assets/images/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/images/favicon-32x32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/images/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/app/app.css">
+{{end}}
+
+{{define "flashes"}}
+{{if .Flashes}}<div class="flashes" role="status" aria-live="polite">
+{{range .Flashes}}<div class="alert alert-{{.Kind}}"><span class="alert-icon" aria-hidden="true">{{if eq .Kind "success"}}✓{{else}}!{{end}}</span><span>{{.Text}}</span></div>{{end}}
+</div>{{end}}
+{{end}}
+
+{{define "demo_banner"}}
+{{if .Demo}}<div class="demo-banner" role="note">
+<strong>Tryb demo.</strong> Dane są wspólne dla wszystkich odwiedzających, wymyślone i zerowane co 15 minut. Nie wpisuj prawdziwych danych.
+<span class="demo-countdown">Następny reset za <time data-countdown="{{.NextAt}}">—</time></span>
+</div>{{end}}
+{{end}}
+
+{{define "logo"}}<a class="brand" href="/"><img src="/assets/brand/icon.svg" width="40" height="40" alt=""><span class="brand-name">Classy Cash</span></a>{{end}}
+
+{{define "csrf"}}<input type="hidden" name="_csrf" value="{{.}}">{{end}}
+
+{{define "scripts"}}<script src="/assets/app/app.js" defer></script>{{end}}
+
+{{define "fielderr"}}{{if .}}<p class="field-error" role="alert">{{.}}</p>{{end}}{{end}}

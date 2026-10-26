@@ -1,0 +1,34 @@
+{{define "content"}}
+<header class="page-head"><div><h1 class="serif">Ustawienia</h1><p class="muted">Dane klasy, odbiorca wpłat i zachowanie aplikacji.</p></div></header>
+<form method="post" action="/treasurer/settings" class="stack" novalidate>
+  {{template "csrf" .CSRF}}
+  <section class="card" aria-labelledby="g-h"><h2 id="g-h" class="h3">Ogólne</h2>
+    <div class="grid-2">
+    <div class="field"><label class="label" for="app_name">Nazwa aplikacji</label><input class="input" id="app_name" name="app_name" value="{{index .Data.Form "app_name"}}" placeholder="Classy Cash" required>{{template "fielderr" (index .Data.Errors "app_name")}}<p class="small muted">Wyświetlana w nagłówkach i wiadomościach e-mail.</p></div>
+    <div class="field"><label class="label" for="class_name">Nazwa klasy</label><input class="input" id="class_name" name="class_name" value="{{index .Data.Form "class_name"}}" required>{{template "fielderr" (index .Data.Errors "class_name")}}</div>
+    <div class="field"><label class="label" for="school_name">Szkoła</label><input class="input" id="school_name" name="school_name" value="{{index .Data.Form "school_name"}}" placeholder="Szkoła Podstawowa nr 1"></div>
+    <div class="field"><label class="label" for="email_from">Adres do odpowiedzi (Reply-To)</label><input class="input" id="email_from" name="email_from" type="email" value="{{index .Data.Form "email_from"}}" placeholder="skarbnik@example.com" {{if .Demo}}disabled{{end}}>{{template "fielderr" (index .Data.Errors "email_from")}}<p class="small muted">Rodzice odpowiedzą na ten adres. Wiadomości wysyła bezpieczna brama pocztowa — nie musisz konfigurować poczty.</p></div>
+    </div>
+  </section>
+  <section class="card" aria-labelledby="p-h"><h2 id="p-h" class="h3">Odbiorca wpłat</h2>
+    <p class="muted small">Rodzice płacą bezpośrednio Tobie. Aplikacja nie przelewa pieniędzy — tylko pokazuje te dane i zapisuje wpłaty.</p>
+    <div class="grid-2">
+    <div class="field"><label class="label" for="blik_phone">Telefon do BLIK</label><input class="input" id="blik_phone" name="blik_phone" type="tel" value="{{index .Data.Form "blik_phone"}}" placeholder="+48 123 456 789"></div>
+    <div class="field"><label class="label" for="transfer_account">Numer konta (przelew)</label><input class="input" id="transfer_account" name="transfer_account" value="{{index .Data.Form "transfer_account"}}" placeholder="PL 12 3456 7890 1234 5678 9012 3456"></div>
+    </div>
+  </section>
+  <section class="card" aria-labelledby="r-h"><h2 id="r-h" class="h3">Rejestracja rodziców</h2>
+    <label class="check"><input type="checkbox" name="parent_registration" value="1" {{if eq (index .Data.Form "parent_registration") "1"}}checked{{end}}><span>Pozwól rodzicom zakładać konta samodzielnie</span></label>
+    <p class="small muted">Gdy wyłączone, rodziców dodajesz Ty (zaproszeniem e-mail) w sekcji „Uczniowie i rodzice”.</p>
+  </section>
+  <div class="actions"><button class="btn btn-primary" type="submit">Zapisz ustawienia</button></div>
+</form>
+<section class="card" aria-labelledby="b-h"><h2 id="b-h" class="h3">Integracje (tylko do odczytu)</h2>
+  <dl class="dl">
+    <dt>Powiadomienia bankowe</dt><dd>{{if .Demo}}<span class="badge badge-muted">Wyłączone w trybie demo</span>{{else if .Data.BankEnabled}}<span class="badge badge-ok">✓ Włączone</span>{{if .Data.BankAddress}} <span class="mono">{{.Data.BankAddress}}</span>{{end}}{{else}}<span class="badge badge-muted">Nieskonfigurowane</span>{{end}}</dd>
+    <dt>Wysyłka e-mail</dt><dd>{{if eq .Data.MailDriver "relay"}}<span class="badge badge-ok">✓ Brama pocztowa</span>{{else}}<span class="badge badge-muted">Tylko podgląd lokalny</span>{{end}}</dd>
+    <dt>Identyfikator instalacji</dt><dd class="mono">{{.Data.Instance}}</dd>
+  </dl>
+  <p class="small muted">Te wartości ustawia operator instalacji; nie można ich zmienić z przeglądarki.</p>
+</section>
+{{end}}

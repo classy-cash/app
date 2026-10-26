@@ -1,0 +1,5 @@
+{{define "content"}}
+<h1 class="serif">Ten link wygasł</h1>
+<p>{{if eq .Data.Kind "reset"}}Link do ustawienia hasła jest nieaktualny albo został już użyty.{{else}}Link do logowania jest nieaktualny albo został już użyty.{{end}}</p>
+<p><a class="btn btn-primary btn-block" href="{{if eq .Data.Kind "reset"}}/reset-password{{else}}/login{{end}}">Poproś o nowy link</a></p>
+{{end}}

@@ -1,0 +1,45 @@
+{{define "content"}}
+<header class="page-head"><div><h1 class="serif">Przypisz przelew</h1><p class="muted">Wybierz płatność, do której chcesz przypisać ten przelew.</p></div><a class="btn btn-outline" href="/treasurer/payments">Anuluj</a></header>
+<section class="card" aria-labelledby="td-h">
+  <h2 id="td-h" class="h3">Szczegóły przelewu</h2>
+  <dl class="dl">
+    <dt>Nadawca</dt><dd>{{.Data.Transfer.Sender}}</dd>
+    <dt>Numer konta</dt><dd class="mono">{{.Data.Transfer.Account}}</dd>
+    <dt>Tytuł</dt><dd>„{{.Data.Transfer.Title}}”</dd>
+    <dt>Kwota</dt><dd class="strong">{{money .Data.Transfer.AmountMinor}}</dd>
+    <dt>Data</dt><dd>{{datetime .Data.Transfer.TransferredAt}}</dd>
+  </dl>
+  {{if .Data.Transfer.IsMatched}}<p class="alert alert-info"><span class="alert-icon" aria-hidden="true">i</span><span>Ten przelew jest już przypisany. Wybranie innej płatności przeniesie go, a poprzednia wróci do statusu „oczekuje”.</span></p>{{end}}
+</section>
+{{if .Data.Top}}<section class="alert alert-info" role="note"><span class="alert-icon" aria-hidden="true">i</span><span><strong>Sugestia na podstawie historii.</strong> {{.Data.Top.Description}} Na podstawie {{.Data.Top.HistoricalMatchCount}} wcześniejszych dopasowań.</span></section>{{end}}
+<section class="card" aria-labelledby="pay-h">
+  <h2 id="pay-h" class="h3">Wybierz płatność z listy</h2>
+  <form method="get" class="search-row"><label class="visually-hidden" for="q">Szukaj</label><input class="input" id="q" name="q" type="search" value="{{.Data.Query}}" placeholder="Szukaj po kodzie, nazwisku lub kwocie…"><button class="btn btn-outline" type="submit">Szukaj</button></form>
+  <form method="post" action="/treasurer/payments/{{.Data.Transfer.ID}}/assign">
+    {{template "csrf" .CSRF}}
+    <ul class="choice-list">
+    {{range .Data.Suggestions}}
+      <li><label class="choice"><input type="radio" name="payment_id" value="{{.Payment.ID}}" required>
+        <span class="choice-body">
+          <span class="choice-top"><span class="mono code">{{if .Payment.Code}}{{.Payment.Code}}{{else}}BRAK KODU{{end}}</span><span class="strong">{{money .Payment.AmountMinor}}</span>
+          {{if .AmountMatch}}<span class="badge badge-ok">✓ Kwota zgodna</span>{{end}}{{if .Hint}}<span class="badge badge-info">★ Potencjalne dopasowanie</span>{{end}}</span>
+          <span class="small">{{.Payment.Label}}</span>
+          {{if .Hint}}<span class="small hint">{{.Hint.Description}}</span>{{end}}
+          <span class="small muted">{{.Payment.UserName}} · {{.Payment.UserEmail}}</span>
+        </span></label></li>
+    {{else}}<li class="empty">Nie znaleziono oczekujących płatności pasujących do wyszukiwania.</li>{{end}}
+    </ul>
+    <div class="actions"><button class="btn btn-primary" type="submit">Zatwierdź i powiąż</button></div>
+  </form>
+</section>
+{{if .Data.Bare}}<section class="card" aria-labelledby="sp-h">
+  <h2 id="sp-h" class="h3">Albo wybierz składkę ucznia (bez kodu płatności)</h2>
+  <form method="post" action="/treasurer/payments/{{.Data.Transfer.ID}}/assign" class="stack">
+    {{template "csrf" .CSRF}}
+    <label class="label" for="student_payment_id">Składka</label>
+    <select class="input" id="student_payment_id" name="student_payment_id" required><option value="">— Wybierz składkę —</option>
+    {{range .Data.Bare}}<option value="{{.ID}}">{{.StudentName}} — {{.Label}} ({{money .AmountMinor}}){{if .DueAt}} · termin {{datep .DueAt}}{{end}}</option>{{end}}</select>
+    <div class="actions"><button class="btn btn-primary" type="submit">Przypisz przelew</button></div>
+  </form>
+</section>{{end}}
+{{end}}

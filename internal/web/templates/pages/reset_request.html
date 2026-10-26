@@ -1,0 +1,11 @@
+{{define "content"}}
+<h1 class="serif">Resetuj hasło</h1>
+{{if .Data.Disabled}}<p class="alert alert-info"><span class="alert-icon" aria-hidden="true">i</span><span>W trybie demo nie można zmieniać haseł.</span></p>{{else}}
+<p class="muted">Podaj adres e-mail konta. Wyślemy link do ustawienia nowego hasła (ważny godzinę).</p>
+<form method="post" action="/reset-password" class="stack" novalidate>
+  {{template "csrf" .CSRF}}
+  <div class="field"><label class="label" for="email">Adres e-mail</label><input class="input" id="email" name="email" type="email" autocomplete="username" required autofocus></div>
+  <button class="btn btn-primary btn-block" type="submit">Wyślij link resetujący</button>
+</form>{{end}}
+<p class="center small"><a class="link" href="/login?mode=password">Wróć do logowania</a></p>
+{{end}}

@@ -1,0 +1,52 @@
+{{define "content"}}
+<header class="page-head"><div><h1 class="serif">Zarządzanie składkami</h1><p class="muted">Twórz nowe cele i edytuj obowiązek wpłat dla poszczególnych uczniów.</p></div></header>
+<section class="card" aria-labelledby="new-h">
+  <h2 id="new-h" class="h3">Utwórz składkę</h2>
+  <form method="post" action="/treasurer/contributions" class="stack">
+    {{template "csrf" .CSRF}}
+    <div class="grid-3">
+      <div class="field"><label class="label" for="title">Tytuł składki</label><input class="input" id="title" name="title" maxlength="128" placeholder="np. Wycieczka do zoo" required></div>
+      <div class="field"><label class="label" for="amount_pln">Kwota (PLN)</label><input class="input" id="amount_pln" name="amount_pln" inputmode="decimal" placeholder="50,00" required></div>
+      <div class="field"><label class="label" for="due_at">Termin</label><input class="input" id="due_at" name="due_at" type="date"></div>
+    </div>
+    <fieldset class="field"><legend class="label">Przypisz do uczniów</legend>
+      {{if .Data.Students}}<button class="btn btn-ghost btn-sm" type="button" data-toggle-all="kid-cb">Odznacz wszystkich</button>
+      <div class="check-grid">{{range .Data.Students}}<label class="check"><input class="kid-cb" type="checkbox" name="students" value="{{.ID}}" checked><span>{{.FullName}}</span></label>{{end}}</div>
+      {{else}}<p class="muted">Najpierw dodaj uczniów w sekcji <a class="link" href="/treasurer/students">Uczniowie i rodzice</a>.</p>{{end}}
+    </fieldset>
+    <div class="actions"><button class="btn btn-primary" type="submit">Uruchom składkę</button></div>
+  </form>
+</section>
+{{range .Data.Contributions}}
+<section class="card" aria-labelledby="c{{.ID}}">
+  <div class="card-head">
+    <div><h2 id="c{{.ID}}" class="h3">Zbiórka: {{.Title}}</h2><p class="small muted">{{if .DueAt}}Termin: {{datep .DueAt}}{{else}}Bez terminu{{end}}</p></div>
+    {{if .Overdue}}<span class="badge badge-danger">! Po terminie</span>{{else}}<span class="badge badge-info">… Trwa</span>{{end}}
+  </div>
+  <p class="small">Postęp wpłat ({{money .AmountMinor}}): <strong>{{.PaidCount}}/{{len .Items}}</strong> opłacone · zebrano {{money .TotalPaid}} z {{money .ExpectedTotal}}</p>
+  <progress class="progress" max="100" value="{{.ProgressPct}}">{{.ProgressPct}}%</progress>
+  <details class="manage"><summary>Zarządzaj przypisaniem (kto musi zapłacić)</summary>
+    <ul class="list">
+    {{range .Items}}{{$sp := .SP}}
+      <li class="list-item">
+        <div class="who"><span class="avatar avatar-sm {{if and $sp (eq $sp.Status "paid")}}avatar-ok{{end}}" aria-hidden="true">{{.Student.Initials}}</span><span class="strong">{{.Student.FullName}}</span></div>
+        <div class="row-actions">
+        {{if not $sp}}<span class="muted">Anulowano</span>
+        {{else if eq $sp.Status "paid"}}<span class="badge badge-ok">✓ Zapłacono</span>
+        {{else}}
+          {{if $sp.Code}}<span class="small muted">Kod: <span class="mono code">{{$sp.Code}}</span></span>
+            <form method="post" action="/treasurer/obligations/{{$sp.ID}}/paid" class="inline">{{template "csrf" $.CSRF}}<button class="btn btn-primary btn-sm" type="submit">Oznacz jako opłacone</button></form>
+          {{else}}
+            <form method="post" action="/treasurer/obligations/{{$sp.ID}}/payment" class="inline">{{template "csrf" $.CSRF}}<button class="btn btn-outline btn-sm" type="submit">Utwórz płatność</button></form>
+            <form method="post" action="/treasurer/obligations/{{$sp.ID}}/paid" class="inline">{{template "csrf" $.CSRF}}<button class="btn btn-primary btn-sm" type="submit">Oznacz jako opłacone</button></form>
+          {{end}}
+          <form method="post" action="/treasurer/obligations/{{$sp.ID}}/cancel" class="inline" data-confirm="Anulować obowiązek zapłaty dla {{.Student.FullName}}?">{{template "csrf" $.CSRF}}<button class="btn btn-ghost btn-sm danger" type="submit">Anuluj</button></form>
+        {{end}}
+        </div>
+      </li>
+    {{end}}
+    </ul>
+  </details>
+</section>
+{{else}}<section class="card"><p class="empty">Brak aktywnych zbiórek</p></section>{{end}}
+{{end}}

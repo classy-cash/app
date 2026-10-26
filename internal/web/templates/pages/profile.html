@@ -1,0 +1,21 @@
+{{define "content"}}
+<header class="parent-head"><div><p class="eyebrow light">Mój profil</p><p class="parent-name">Ustawienia konta</p></div><div class="avatar avatar-accent" aria-hidden="true">{{initial .User.Name}}</div></header>
+<section class="parent-section">
+  <form method="post" action="/profile" class="stack">{{template "csrf" .CSRF}}
+    <div class="field"><label class="label" for="name">Imię i nazwisko</label><input class="input" id="name" name="name" value="{{.User.Name}}" required {{if .Data.DemoLocked}}disabled{{end}}></div>
+    <div class="field"><label class="label" for="email">Adres e-mail</label><input class="input" id="email" value="{{.User.Email}}" disabled></div>
+    <div class="field"><label class="label" for="phone">Telefon (opcjonalnie)</label><input class="input" id="phone" name="phone" type="tel" value="{{.User.Phone}}" {{if .Data.DemoLocked}}disabled{{end}}></div>
+    {{if not .Data.DemoLocked}}<button class="btn btn-primary" type="submit">Zapisz profil</button>{{else}}<p class="small muted">W trybie demo dane konta są zablokowane.</p>{{end}}
+  </form>
+</section>
+{{if not .Data.DemoLocked}}<section class="parent-section">
+  <h2 class="h3">{{if .Data.HasPassword}}Zmień hasło{{else}}Ustaw hasło{{end}}</h2>
+  <form method="post" action="/profile/password" class="stack">{{template "csrf" .CSRF}}
+    {{if .Data.HasPassword}}<div class="field"><label class="label" for="current">Obecne hasło</label><input class="input" id="current" name="current" type="password" autocomplete="current-password" required></div>{{end}}
+    <div class="field"><label class="label" for="password">Nowe hasło</label><input class="input" id="password" name="password" type="password" autocomplete="new-password" minlength="8" required></div>
+    <div class="field"><label class="label" for="password_confirm">Potwierdź hasło</label><input class="input" id="password_confirm" name="password_confirm" type="password" autocomplete="new-password" minlength="8" required></div>
+    <button class="btn btn-outline" type="submit">Zapisz hasło</button>
+  </form>
+</section>{{end}}
+<section class="parent-section"><form method="post" action="/logout">{{template "csrf" .CSRF}}<button class="btn btn-outline btn-block" type="submit">Wyloguj się</button></form></section>
+{{end}}

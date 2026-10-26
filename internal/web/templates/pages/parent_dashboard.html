@@ -1,0 +1,48 @@
+{{define "content"}}
+<header class="parent-head">
+  <div><p class="eyebrow light">Konto rodzica</p><p class="parent-name">{{.User.Name}}</p><p class="parent-class">{{.Class.Name}}</p></div>
+  <div class="avatar avatar-accent" aria-hidden="true">{{initial .User.Name}}</div>
+</header>
+<section class="parent-total" aria-labelledby="total-h">
+  <p id="total-h" class="eyebrow">Suma do uregulowania</p>
+  <p class="big-amount">{{money .Data.Total}}</p>
+  {{if gt .Data.Total 0}}<span class="badge badge-warn">Do zapłaty</span>{{else}}<span class="badge badge-ok">✓ Wszystko opłacone</span>{{end}}
+</section>
+<section class="parent-section">
+  <button class="btn btn-accent btn-block btn-lg" type="button" data-fastpay {{if eq .Data.Total 0}}disabled{{end}}>Zapłać BLIKIEM</button>
+  <p class="small muted center">Pieniądze trafiają bezpośrednio do skarbnika. Aplikacja zapisze wpłatę, gdy pojawi się w banku.</p>
+</section>
+<section class="parent-section" aria-labelledby="req-h">
+  <h2 id="req-h" class="h3">Wymagane składki</h2>
+  <ul class="list">
+  {{range .Data.Open}}<li class="list-item"><div><p class="strong">{{.Label}}</p><p class="small muted">{{.StudentName}} · {{if .DueAt}}Termin: {{datep .DueAt}}{{else}}Brak terminu{{end}}</p></div><div class="right"><p class="strong">{{money .AmountMinor}}</p>{{if eq .Status "partial"}}<span class="badge badge-info">Częściowo</span>{{end}}</div></li>
+  {{else}}<li class="list-item empty">Wszystkie składki opłacone! 🎉</li>{{end}}
+  </ul>
+</section>
+{{if .Data.Paid}}<section class="parent-section" aria-labelledby="hist-h">
+  <h2 id="hist-h" class="h3">Historia wpłat</h2>
+  <ul class="list">{{range .Data.Paid}}<li class="list-item"><div><p class="strong">{{.Label}}</p><p class="small muted">{{.StudentName}}{{if .PaidAt}} · {{datep .PaidAt}}{{end}}</p></div><div class="right"><p class="strong">{{money .AmountMinor}}</p><span class="badge badge-ok">✓ Zapłacono</span></div></li>{{end}}</ul>
+</section>{{end}}
+{{if .IsManager}}<section class="parent-section"><a class="btn btn-primary btn-block" href="/treasurer/dashboard">Panel skarbnika</a></section>{{end}}
+
+<dialog id="fastpay" class="modal" aria-labelledby="fp-title">
+  <div class="modal-body">
+    <button class="icon-btn modal-close" type="button" data-close aria-label="Zamknij">×</button>
+    <div data-fp-loading><p>Przygotowuję płatność…</p></div>
+    <div data-fp-empty hidden><h2 class="serif" id="fp-title">Brak zaległości</h2><p>Wszystkie Twoje składki zostały już opłacone. Dziękujemy!</p><button class="btn btn-primary btn-block" type="button" data-close>Zamknij</button></div>
+    <div data-fp-pay hidden>
+      <p class="eyebrow">Płatność BLIK</p><h2 class="serif">Szybkie rozliczenie</h2>
+      <div class="amount-card"><p class="small">Kwota do przelania</p><p class="big-amount" data-fp-amount></p></div>
+      <ol class="pay-steps">
+        <li><p class="small muted">Numer telefonu odbiorcy</p><p class="copy-row"><span class="mono" data-fp-phone></span><button class="btn btn-outline btn-sm" type="button" data-copy-from="[data-fp-phone]">Kopiuj</button></p></li>
+        <li><p class="small muted">Tytuł przelewu (ważne!)</p><p class="copy-row"><span class="mono code" data-fp-code></span><button class="btn btn-outline btn-sm" type="button" data-copy-from="[data-fp-code]">Kopiuj</button></p></li>
+      </ol>
+      <p class="alert alert-info"><span class="alert-icon" aria-hidden="true">i</span><span>Po wykonaniu przelewu system wykryje wpłatę i powiadomi skarbnika. Nie musisz przesyłać potwierdzenia.</span></p>
+      <p class="small muted" data-fp-account-row hidden>Alternatywnie — konto: <span class="mono" data-fp-account></span></p>
+      <button class="btn btn-primary btn-block" type="button" data-close>Gotowe, przelew wysłany</button>
+    </div>
+    <div data-fp-done hidden><p class="eyebrow">Zaksięgowano</p><h2 class="serif">Płatność zaksięgowana!</h2><p>Dziękujemy za wpłatę. Skarbnik został powiadomiony.</p><button class="btn btn-primary btn-block" type="button" data-reload>Zamknij</button></div>
+    <div data-fp-error hidden><h2 class="serif">Nie udało się</h2><p>Spróbuj ponownie za chwilę.</p><button class="btn btn-outline btn-block" type="button" data-close>Zamknij</button></div>
+  </div>
+</dialog>
+{{end}}

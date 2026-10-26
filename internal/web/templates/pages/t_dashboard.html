@@ -1,0 +1,33 @@
+{{define "cards"}}
+<div class="stat-grid" data-cards>
+  <article class="card stat"><p class="stat-label">Suma w kasie</p><p class="stat-value {{if gt .Sum.TotalMinor 0}}pos{{end}}">{{money .Sum.TotalMinor}}</p></article>
+  <article class="card stat"><p class="stat-label">Zebrane ({{month .Month}})</p><p class="stat-value">{{money .Sum.MonthCollected}}</p></article>
+  <article class="card stat"><p class="stat-label">Zaległości</p><p class="stat-value {{if gt .Sum.OutstandingMinor 0}}warn{{end}}">{{money .Sum.OutstandingMinor}}</p><p class="small muted">{{.Sum.OutstandingCount}} nieopłaconych pozycji{{if gt .Sum.OutstandingCount 0}} · {{.Sum.OutstandingStudent}} uczniów{{end}}</p></article>
+</div>
+{{end}}
+
+{{define "ledger_rows"}}{{range .Rows}}
+<tr>
+  <td data-label="Opis operacji">{{if .StudentName}}<p class="strong">{{.StudentName}}</p><p class="small muted">{{.Description}} ({{.Method}})</p>{{else}}<p class="strong">{{.Description}}</p><p class="small muted">{{.Method}}</p>{{end}}</td>
+  <td data-label="Data">{{if today .Date}}Dziś, {{hm .Date}}{{else}}{{date .Date}}{{end}}</td>
+  <td data-label="Kwota" class="num {{if eq .Kind "income"}}pos{{else}}neg{{end}}">{{if eq .Kind "income"}}+{{else}}−{{end}}{{money .AmountMinor}}</td>
+  <td data-label="Saldo po" class="num">{{money .BalanceAfter}}</td>
+  <td data-label="Status">{{if eq .Kind "income"}}<span class="badge badge-ok">↓ Wpłata</span>{{else}}<span class="badge badge-danger">↑ Koszt</span>{{end}}</td>
+</tr>{{end}}{{end}}
+
+{{define "content"}}
+<header class="page-head">
+  <div><h1 class="serif">Panel główny</h1><p class="muted">Podsumowanie finansów klasy {{.Class.Name}}.</p></div>
+  <a class="btn btn-primary" href="/treasurer/manual-transactions">Nowa transakcja</a>
+</header>
+<div data-cards-host data-url="/treasurer/dashboard/cards">{{template "cards" .Data}}</div>
+<section class="card" aria-labelledby="ledger-h">
+  <div class="card-head"><h2 id="ledger-h" class="h3">Ostatnio zaksięgowane operacje</h2><p class="small muted">Historia przepływów kasy klasowej</p></div>
+  <div class="table-wrap"><table class="table responsive">
+    <thead><tr><th scope="col">Opis operacji / cel</th><th scope="col">Data</th><th scope="col" class="num">Kwota</th><th scope="col" class="num">Saldo po</th><th scope="col">Status</th></tr></thead>
+    <tbody data-ledger data-next="2">{{template "ledger_rows" .Data}}</tbody>
+  </table></div>
+  {{if not .Data.Rows}}<p class="empty">Brak operacji do wyświetlenia</p>{{end}}
+  {{if .Data.More}}<p class="center"><button class="btn btn-outline" type="button" data-ledger-more>Pokaż starsze operacje</button></p>{{else if .Data.Rows}}<p class="center small muted">Koniec historii finansowej</p>{{end}}
+</section>
+{{end}}

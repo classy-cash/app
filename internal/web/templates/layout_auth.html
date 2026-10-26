@@ -1,0 +1,24 @@
+{{define "layout_auth"}}<!DOCTYPE html>
+<html lang="pl"><head>{{template "head" .}}</head>
+<body class="auth-body">
+<a class="skip-link" href="#main">Przejdź do treści</a>
+{{template "demo_banner" .}}
+<div class="auth">
+  <aside class="auth-side" aria-hidden="false">
+    <a class="brand brand-light" href="/"><img src="/assets/brand/icon.svg" width="44" height="44" alt=""><span class="brand-name">Classy Cash</span></a>
+    <div class="auth-hero">
+      <h2 class="serif">Składki klasowe<br>pod kontrolą.</h2>
+      <p>Wpłaty, składki i rozliczenia klasy w jednym miejscu. Pieniądze trafiają bezpośrednio do skarbnika.</p>
+    </div>
+    <p class="auth-foot">Classy Cash · wersja {{.Version}}</p>
+  </aside>
+  <main id="main" class="auth-main">
+    <div class="auth-card">
+      <a class="brand brand-mobile" href="/"><img src="/assets/brand/icon.svg" width="40" height="40" alt=""><span class="brand-name">Classy Cash</span></a>
+      {{template "flashes" .}}
+      {{template "content" .}}
+    </div>
+  </main>
+</div>
+{{template "scripts"}}
+</body></html>{{end}}
