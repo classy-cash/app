@@ -1,0 +1,19 @@
+:root {
+  --cc-background: #f7f6f0;
+  --cc-foreground: #15203d;
+  --cc-primary: #1a2a52;
+  --cc-primary-alt: #2a4a7a;
+  --cc-accent: #e8b441;
+  --cc-secondary: #2aa57f;
+  --cc-secondary-soft: #e6f5ee;
+  --cc-card: #ffffff;
+  --cc-border: #e2e6ee;
+  --cc-muted: #6b7796;
+  --cc-danger: #d65a4a;
+  --cc-font-body: Inter, system-ui, sans-serif;
+  --cc-font-heading: "Playfair Display", Georgia, serif;
+  --cc-content-max: 1120px;
+  --cc-radius-card: 14px;
+  --cc-radius-input: 10px;
+  --cc-shadow-card: 0 4px 20px -6px rgba(26, 42, 82, 0.08);
+}
