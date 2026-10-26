@@ -844,3 +844,11 @@ func (s *Store) NotifyParentAboutDifference(ctx context.Context, classID, transf
 	r := mail.PartialPayment(s.Branding(ctx), t.Payment.UserName, t.Payment.Label(), t.Payment.AmountMinor, t.AmountMinor)
 	return s.Enqueue(ctx, mail.Message{Key: fmt.Sprintf("diff-%d-%d", transferID, s.Now().Unix()), ToEmail: t.Payment.UserEmail, ToName: t.Payment.UserName, Subject: r.Subject, HTML: r.HTML, Text: r.Text})
 }
+
+// RecordRejectedBankEvent keeps a delivery whose sender failed the optional BANK_MAIL_FROM check
+// for review. It is never parsed or replayed, but it is acknowledged so the queue stops retrying.
+func (s *Store) RecordRejectedBankEvent(ctx context.Context, ev BankEventIn, reason string) error {
+	_, err := s.DB.ExecContext(ctx, `INSERT OR IGNORE INTO bank_events (id, received_at, recipient, mail_from, subject, body, status, reason, created_at) VALUES (?,?,?,?,?,?, 'rejected_sender', ?, ?)`,
+		ev.ID, ts(ev.ReceivedAt), ev.Recipient, ev.MailFrom, ev.Subject, "", reason, ts(s.Now()))
+	return err
+}
