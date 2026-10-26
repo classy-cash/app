@@ -1,6 +1,6 @@
 {{define "layout_treasurer"}}<!DOCTYPE html>
 <html lang="pl"><head>{{template "head" .}}</head>
-<body>
+<body class="has-sidebar">
 <a class="skip-link" href="#main">Przejdź do treści</a>
 {{template "demo_banner" .}}
 <header class="topbar">
@@ -43,5 +43,5 @@
   {{template "flashes" .}}
   {{template "content" .}}
 </main>
-{{template "scripts"}}
+{{template "scripts" .}}
 </body></html>{{end}}

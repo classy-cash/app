@@ -14,5 +14,5 @@
     <a class="bn {{if eq .Active "profile"}}active{{end}}" href="/profile" {{if eq .Active "profile"}}aria-current="page"{{end}}><span class="bn-ico" aria-hidden="true">☺</span><span>Profil</span></a>
   </nav>
 </div>
-{{template "scripts"}}
+{{template "scripts" .}}
 </body></html>{{end}}

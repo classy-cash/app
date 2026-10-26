@@ -25,6 +25,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	_ "time/tzdata" // Europe/Warsaw without relying on the host zoneinfo (minimal Alpine/FROG)
 
 	"github.com/classy-cash/app/internal/config"
 	"github.com/classy-cash/app/internal/db"

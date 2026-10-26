@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/assets/images/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
 <link rel="preload" href="/assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/app/app.css">
+<link rel="stylesheet" href="/assets/app/app.css?v={{.Version}}">
 {{end}}
 
 {{define "flashes"}}
@@ -29,6 +29,6 @@
 
 {{define "csrf"}}<input type="hidden" name="_csrf" value="{{.}}">{{end}}
 
-{{define "scripts"}}<script src="/assets/app/app.js" defer></script>{{end}}
+{{define "scripts"}}<script src="/assets/app/app.js?v={{.Version}}" defer></script>{{end}}
 
 {{define "fielderr"}}{{if .}}<p class="field-error" role="alert">{{.}}</p>{{end}}{{end}}

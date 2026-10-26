@@ -94,15 +94,11 @@ form.inline{display:inline}
 .row-actions{display:flex;gap:var(--sp-2);align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .who{display:flex;gap:var(--sp-3);align-items:center}
 .alert{display:flex;gap:var(--sp-3);align-items:flex-start;padding:var(--sp-3) var(--sp-4);border-radius:var(--radius-input);border:1px solid;margin:var(--sp-4) 0;font-size:.95rem}
-.alert-icon{font-weight:800;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex:none;font-size:.8rem;background:currentColor}
-.alert-icon{color:inherit;position:relative}
-.alert-icon::before{content:"";position:absolute;inset:0}
+.alert-icon{font-weight:800;width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex:none;font-size:.8rem;color:#fff}
+.alert-success .alert-icon{background:var(--ok-text)}.alert-error .alert-icon{background:var(--danger-text)}.alert-info .alert-icon{background:var(--primary)}
 .alert-success{background:var(--emerald-soft);border-color:#b8e3d1;color:var(--ok-text)}
 .alert-error{background:var(--danger-bg);border-color:#f1c2bb;color:var(--danger-text)}
 .alert-info{background:var(--info-bg);border-color:#cdd7ee;color:var(--primary)}
-.alert .alert-icon{color:#fff;background:currentColor;mix-blend-mode:normal}
-.alert-success .alert-icon,.alert-error .alert-icon,.alert-info .alert-icon{color:#fff}
-.alert-icon{-webkit-text-fill-color:#fff}
 .flashes{margin-bottom:var(--sp-4)}.flashes .alert{margin:0 0 var(--sp-2)}
 .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:99px;font-size:.72rem;font-weight:800;letter-spacing:.03em;white-space:nowrap}
 .badge-ok{background:var(--emerald-soft);color:var(--ok-text)}.badge-warn{background:var(--warn-bg);color:var(--warn-text)}
@@ -217,4 +213,5 @@ dialog.modal::backdrop{background:rgba(15,23,42,.6);backdrop-filter:blur(6px)}
 .demo-banner{background:var(--accent);color:var(--primary);padding:var(--sp-2) var(--sp-4);font-size:.85rem;text-align:center;position:sticky;top:0;z-index:60}
 .demo-countdown{font-weight:700;margin-left:var(--sp-2);white-space:nowrap}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media (min-width:1024px){body.has-sidebar .demo-banner{margin-left:256px}}
 @media print{.sidebar,.topbar,.bottom-nav,.demo-banner{display:none}.content{margin:0}}
