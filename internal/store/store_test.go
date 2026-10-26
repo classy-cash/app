@@ -506,3 +506,36 @@ func TestParentRegistrationFlagAndSettings(t *testing.T) {
 		t.Fatal("app name")
 	}
 }
+
+func TestDemoLoadReplacesEverythingAtomically(t *testing.T) {
+	f := newFixture(t)
+	raw, _ := f.s.CreateSession(f.ctx, f.treas)
+	f.contribution(f.class.ID, "Wycieczka", 5000, f.kid)
+	seed := `INSERT INTO users (id,email,name,password_hash,is_admin,created_at) VALUES (1,'demo@example.com','Demo Skarbnik','',1,'2026-10-27T10:00:00Z');
+INSERT INTO classes (id,name,created_at) VALUES (1,'Demo 4A','2026-10-27T10:00:00Z');
+INSERT INTO memberships (user_id,class_id,role) VALUES (1,1,'treasurer');`
+	gen, err := f.s.DemoLoad(f.ctx, seed)
+	f.must(err)
+	if gen != 1 || f.s.Generation(f.ctx) != 1 {
+		t.Fatalf("generation %d", gen)
+	}
+	if _, _, err := f.s.SessionUser(f.ctx, raw); !errors.Is(err, ErrNotFound) {
+		t.Fatal("sessions must not survive a reset")
+	}
+	if n, _ := f.s.CountUsers(f.ctx); n != 1 {
+		t.Fatalf("users %d", n)
+	}
+	if sps, _ := f.s.StudentPaymentsByClass(f.ctx, 1); len(sps) != 0 {
+		t.Fatal("old data must be gone")
+	}
+	// A broken seed rolls back completely: the previous dataset stays intact.
+	if _, err := f.s.DemoLoad(f.ctx, `INSERT INTO students (class_id,first_name,last_name) VALUES (999,'X','Y');`); err == nil {
+		t.Fatal("foreign key violation must fail the load")
+	}
+	if n, _ := f.s.CountUsers(f.ctx); n != 1 || f.s.Generation(f.ctx) != 1 {
+		t.Fatal("failed load must roll back")
+	}
+	if gen, err := f.s.DemoLoad(f.ctx, ""); err != nil || gen != 2 {
+		t.Fatalf("empty reload: %d %v", gen, err)
+	}
+}
