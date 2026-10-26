@@ -19,9 +19,10 @@ for ARCH in amd64 arm64; do
     -o "$STAGE/classycash" ./cmd/classycash
   cp LICENSE deploy/env.example "$STAGE/"
   cp deploy/openrc/classycash "$STAGE/classycash.openrc"
-  # Fixed mtime/owner keep the archive byte-for-byte reproducible.
-  tar --sort=name --mtime='2026-01-01 00:00:00' --owner=0 --group=0 --numeric-owner -C "$OUT" -czf "$OUT/$NAME.tar.gz" "$NAME" 2>/dev/null \
-    || tar -C "$OUT" -czf "$OUT/$NAME.tar.gz" "$NAME"
+  # Deterministic archive: fixed mtimes, sorted entries, numeric root ownership, no gzip timestamp.
+  find "$STAGE" -exec touch -t 202601010000 {} +
+  if tar --version 2>/dev/null | grep -q GNU; then OWNER="--owner=0 --group=0 --numeric-owner"; else OWNER="--uid 0 --gid 0 --numeric-owner"; fi
+  (cd "$OUT" && find "$NAME" | LC_ALL=C sort | tar $OWNER -cf - -T -) | gzip -n -9 > "$OUT/$NAME.tar.gz"
   rm -rf "$STAGE"
 done
 (cd "$OUT" && { sha256sum ./*.tar.gz 2>/dev/null || shasum -a 256 ./*.tar.gz; } | sed 's| \./| |' > SHA256SUMS)

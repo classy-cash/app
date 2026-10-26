@@ -1,0 +1,37 @@
+name: Go release artifacts
+
+# Manual only. This workflow never creates a git tag or a GitHub release: the legacy PHP workflow
+# "Production Build and Deploy" runs on EVERY pushed tag, so tagging is a deliberate, separate step
+# (see docs/INTEGRATION.md, "Release artifacts"). The artifacts are attached to this workflow run.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version, e.g. 1.0.0 (no tag is created)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: tests
+        run: go test -race -count=1 ./...
+      - name: build artifacts
+        env:
+          VERSION: ${{ inputs.version }}
+        run: sh scripts/release.sh
+      - name: verify checksums
+        run: cd dist && sha256sum -c SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: classycash-${{ inputs.version }}
+          path: dist/
+          if-no-files-found: error

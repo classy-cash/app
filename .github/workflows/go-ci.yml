@@ -1,0 +1,33 @@
+name: Go CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['docs/**', '*.md']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: gofmt
+        run: test -z "$(gofmt -s -l cmd internal assets migrations)"
+      - name: vet
+        run: go vet ./...
+      - name: test (race)
+        run: go test -race -count=1 -coverprofile=coverage.out ./...
+      - name: coverage summary
+        run: go tool cover -func=coverage.out | tail -1
+      - name: build static binary
+        run: CGO_ENABLED=0 go build -trimpath -o /tmp/classycash ./cmd/classycash
+      - name: config-check smoke test
+        run: CLASSYCASH_ENV=dev /tmp/classycash config-check
+      - name: container image builds
+        run: docker build -f deploy/Dockerfile -t classycash:ci .
