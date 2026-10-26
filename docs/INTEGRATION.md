@@ -108,10 +108,10 @@ const sig = hex(await crypto.subtle.sign("HMAC", key, enc.encode(`${timestamp}\n
 | Storage failure | `500 storage error` (retry) |
 | **Anything else, including redeliveries and quarantined mail** | **`204 No Content`** |
 
-**Worker retry policy.** Treat `2xx` as done. Retry (with a *new* timestamp/signature each attempt and the
-same `id`) on network errors, `5xx` and `503`; do **not** retry `400`/`401`/`413` — they will never succeed
-(fix and replay from the DLQ instead). Redirects must not be followed. Ceramiza's schedule
-(`30·2^n` s capped at 30 min, 20 attempts, DLQ) works unchanged.
+**Worker retry policy.** Treat `2xx` as done. Retry with a *new* timestamp/signature each attempt and the
+same `id`. Retrying every non-2xx (as Ceramiza does) is acceptable, but `400`/`413` can never succeed and should
+reach the DLQ quickly, and `401` means a secret mismatch or more than 5 minutes of clock skew — alert on it.
+Do not follow redirects. Ceramiza's schedule (`30·2^n` s capped at 30 min, 20 attempts, DLQ) works unchanged.
 
 **Idempotency and effects.** In one SQLite transaction the app stores the delivery (keyed by `id`, lower-cased),
 the parsed transfer, any matching/settlement and the notification outbox rows. A second delivery with the same
