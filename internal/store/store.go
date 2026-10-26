@@ -42,8 +42,9 @@ const (
 
 // Store is the application's data access and domain service.
 type Store struct {
-	DB  *sql.DB
-	Loc *time.Location
+	DB      *sql.DB
+	Loc     *time.Location
+	BaseURL string // public URL used in e-mail links
 	// Now is injectable for tests.
 	Now func() time.Time
 }
