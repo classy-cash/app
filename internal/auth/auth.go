@@ -10,13 +10,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"strings"
 
 	"golang.org/x/crypto/argon2"
 )
 
 // Argon2id parameters (OWASP minimum profile m=19 MiB, t=2, p=1). Memory is the constraint on a
-// 256 MB host, so hashing is serialised by a small semaphore.
+// 256 MB host, so hashing is serialised (one at a time).
 const (
 	argonMemory  = 19 * 1024
 	argonTime    = 2
@@ -27,12 +28,22 @@ const (
 	MinPasswordLen = 8
 )
 
-var hashSlots = make(chan struct{}, 2)
+var hashSlots = make(chan struct{}, 1)
+
+// release frees a hashing slot. argon2 allocates a fresh ~19 MiB block per call and Go would keep
+// that garbage mapped; when the last concurrent hash finishes, hand the memory back to the OS so
+// RSS stays inside the 256 MB host budget. Hashing is rare, so the extra GC is cheap.
+func release() {
+	<-hashSlots
+	if len(hashSlots) == 0 {
+		debug.FreeOSMemory()
+	}
+}
 
 // HashPassword returns a self-describing argon2id hash.
 func HashPassword(password string) (string, error) {
 	hashSlots <- struct{}{}
-	defer func() { <-hashSlots }()
+	defer release()
 	salt := make([]byte, saltLen)
 	if _, err := rand.Read(salt); err != nil {
 		return "", err
@@ -68,7 +79,7 @@ func VerifyPassword(encoded, password string) bool {
 		return false
 	}
 	hashSlots <- struct{}{}
-	defer func() { <-hashSlots }()
+	defer release()
 	got := argon2.IDKey([]byte(password), salt, uint32(t), uint32(m), uint8(p), uint32(len(want)))
 	return subtle.ConstantTimeCompare(got, want) == 1
 }
