@@ -1,0 +1,24 @@
+#!/sbin/openrc-run
+# Alpine OpenRC service for Classy Cash (FROG). Install as /etc/init.d/classycash.
+# Configuration: /etc/classycash/env (KEY=VALUE lines, mode 600). The server applies pending
+# database migrations itself on start-up, as the unprivileged service user.
+name="classycash"
+description="Classy Cash"
+command="/opt/classycash/classycash"
+command_args="serve"
+command_user="classycash:classycash"
+command_background=true
+pidfile="/run/${RC_SVCNAME}.pid"
+output_log="/var/log/classycash/classycash.log"
+error_log="/var/log/classycash/classycash.log"
+
+depend() {
+	need net
+}
+
+start_pre() {
+	checkpath --directory --owner classycash:classycash --mode 0750 /var/lib/classycash /var/log/classycash
+	set -a
+	. /etc/classycash/env
+	set +a
+}
