@@ -28,3 +28,14 @@ phpstan.neon
 ###> deptrac/deptrac ###
 /.deptrac.cache
 ###< deptrac/deptrac ###
+
+###> go ###
+/dist/
+/bin/classycash
+/classycash
+/data/
+*.db
+*.db-wal
+*.db-shm
+/coverage.out
+###< go ###
