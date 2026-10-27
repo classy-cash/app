@@ -240,6 +240,7 @@ are the source of truth, pin the wrapper to an app version and re-check on upgra
   Seed payments in every state (`pending, paid, failed, refunded, expired`), obligations in `pending, partial,
   paid`, matched/unmatched/review (`review_reason` set) transfers and `bank_events` rows
   (`parsed, unrecognized, duplicate_review`) to demonstrate each screen.
+* Migration `0004` adds `classes.archived_at` (set = archived class: read-only, listed last). Optional in a seed.
 * Migration `0003` (corrections) is additive and optional for a seed: `contributions.closed_at` (set = closed,
   shown as "Zakończona"), `expenses.voided_at` (set = voided, left out of the ledger), `payments.source`
   (`online` default; `manual` marks hand-booked cash so it appears in "Ostatnie wpisy ręczne" and can be

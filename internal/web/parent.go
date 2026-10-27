@@ -71,6 +71,10 @@ func (s *Server) handlePay(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, http.StatusBadRequest, "Brak klasy.")
 		return
 	}
+	if s.Store.IsArchived(r.Context(), st.class.ID) {
+		s.fail(w, r, http.StatusForbidden, "Ta klasa jest zarchiwizowana — nie można już zakładać płatności.")
+		return
+	}
 	var ids []int64
 	for _, v := range r.PostForm["ids"] {
 		if id, err := strconv.ParseInt(v, 10, 64); err == nil {

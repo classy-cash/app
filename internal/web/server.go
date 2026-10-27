@@ -285,6 +285,10 @@ func (s *Server) needManager(h handler) http.HandlerFunc {
 			return
 		}
 		if !s.Store.CanManage(r.Context(), *st.user, st.class.ID) {
+			if s.Store.IsArchived(r.Context(), st.class.ID) {
+				s.fail(w, r, http.StatusForbidden, "Ta klasa jest zarchiwizowana i dostępna tylko do odczytu.")
+				return
+			}
 			s.fail(w, r, http.StatusForbidden, "Ta sekcja jest dostępna tylko dla skarbnika klasy.")
 			return
 		}
@@ -387,7 +391,7 @@ func (s *Server) page(r *http.Request, title, active string, data any) *pageData
 		CSRF: auth.CSRF(s.Cfg.SessionSecret, st.csrfCookie), Demo: s.Cfg.Demo, Active: active, Version: version.Version, Path: r.URL.Path, Data: data}
 	if st.user != nil && st.class != nil {
 		p.IsManager = s.Store.CanManage(r.Context(), *st.user, st.class.ID)
-		p.IsViewer = p.IsManager || store.IsCouncil(st.role)
+		p.IsViewer = s.Store.CanView(r.Context(), *st.user, st.class.ID)
 	}
 	if st.user != nil {
 		p.RoleLabel = roleLabel(st.user.IsAdmin, st.role)

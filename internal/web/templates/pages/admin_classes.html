@@ -1,7 +1,18 @@
 {{define "content"}}
 <header class="page-head"><div><h1 class="serif">Klasy</h1><p class="muted">Każda klasa ma własnego skarbnika, uczniów, składki i kasę.</p></div></header>
-<section class="card"><div class="table-wrap"><table class="table responsive"><thead><tr><th scope="col">Klasa</th><th scope="col">Szkoła</th><th scope="col">Skarbnik</th></tr></thead><tbody>
-{{range .Data.Rows}}<tr><td data-label="Klasa" class="strong">{{.Class.Name}}</td><td data-label="Szkoła">{{.Class.SchoolName}}</td><td data-label="Skarbnik">{{if .Treasurer}}{{.Treasurer}}{{else}}<span class="muted">brak</span>{{end}}</td></tr>{{end}}</tbody></table></div></section>
+<section class="card"><div class="table-wrap"><table class="table responsive"><thead><tr><th scope="col">Klasa</th><th scope="col">Szkoła</th><th scope="col">Skarbnik</th><th scope="col">Rok szkolny</th></tr></thead><tbody>
+{{range .Data.Rows}}<tr><td data-label="Klasa" class="strong">{{.Class.Name}}{{if .Class.ArchivedAt}} <span class="badge badge-muted">Archiwum</span>{{end}}</td><td data-label="Szkoła">{{.Class.SchoolName}}</td><td data-label="Skarbnik">{{if .Treasurer}}{{.Treasurer}}{{else}}<span class="muted">brak</span>{{end}}</td>
+<td data-label="Rok szkolny"><div class="row-actions">
+{{if .Class.ArchivedAt}}<form method="post" action="/admin/classes/{{.Class.ID}}/restore" class="inline">{{template "csrf" $.CSRF}}<button class="btn btn-outline btn-sm" type="submit">Przywróć</button></form>
+{{else}}<form method="post" action="/admin/classes/{{.Class.ID}}/archive" class="inline" data-confirm="Zarchiwizować klasę {{.Class.Name}}? Stanie się tylko do odczytu.">{{template "csrf" $.CSRF}}<button class="btn btn-ghost btn-sm" type="submit">Archiwizuj</button></form>{{end}}
+</div></td></tr>
+{{if not .Class.ArchivedAt}}<tr class="rollover-row"><td colspan="4"><details class="manage"><summary>Nowy rok szkolny dla {{.Class.Name}}</summary>
+<form method="post" action="/admin/classes/{{.Class.ID}}/rollover" class="inline-form" data-confirm="Utworzyć nową klasę z uczniami i rodzicami klasy {{.Class.Name}}?">{{template "csrf" $.CSRF}}
+<label class="label" for="ro{{.Class.ID}}">Nazwa nowej klasy</label><input class="input" id="ro{{.Class.ID}}" name="name" placeholder="np. 5A" required>
+<label class="check small"><input type="checkbox" name="archive_old" value="1" checked><span>zarchiwizuj {{.Class.Name}}</span></label>
+<button class="btn btn-primary btn-sm" type="submit">Utwórz klasę</button></form>
+<p class="small muted">Przenoszeni są uczniowie z rodzicami i skarbnik oraz dane do wpłat. Składki, płatności i saldo zostają w starej klasie; rada klasowa jest wybierana na nowo.</p></details></td></tr>{{end}}
+{{end}}</tbody></table></div></section>
 <section class="card" aria-labelledby="nc-h"><h2 id="nc-h" class="h3">Nowa klasa</h2>
 <form method="post" action="/admin/classes" class="stack">{{template "csrf" .CSRF}}
   <div class="grid-3"><div class="field"><label class="label" for="name">Nazwa klasy</label><input class="input" id="name" name="name" required></div>

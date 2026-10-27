@@ -13,7 +13,7 @@
     {{if gt (len .Classes) 1}}
     <form method="post" action="/class/switch" class="class-switch">{{template "csrf" .CSRF}}
       <label class="label" for="class_id">Klasa</label>
-      <select class="input" id="class_id" name="class_id" data-autosubmit>{{$cur := .Class}}{{range .Classes}}<option value="{{.ID}}" {{if eq .ID $cur.ID}}selected{{end}}>{{.Name}}</option>{{end}}</select>
+      <select class="input" id="class_id" name="class_id" data-autosubmit>{{$cur := .Class}}{{range .Classes}}<option value="{{.ID}}" {{if eq .ID $cur.ID}}selected{{end}}>{{.Name}}{{if .ArchivedAt}} (archiwum){{end}}</option>{{end}}</select>
     </form>
     {{else if .Class}}<p class="class-name">{{.Class.Name}}</p>{{end}}
     <nav>
@@ -43,7 +43,8 @@
 </aside>
 <div class="sidebar-backdrop" data-toggle-sidebar hidden></div>
 <main id="main" class="content">
-  {{if not .IsManager}}<p class="alert alert-info" role="note"><span class="alert-icon" aria-hidden="true">i</span><span><strong>Tryb podglądu.</strong> Jako {{.RoleLabel}} możesz przeglądać dane klasy i raporty. Zmiany wprowadza skarbnik.</span></p>{{end}}
+  {{if and .Class .Class.ArchivedAt}}<p class="alert alert-info" role="note"><span class="alert-icon" aria-hidden="true">i</span><span><strong>Klasa zarchiwizowana.</strong> To historia zakończonego roku — dane są tylko do odczytu. Administrator może klasę przywrócić.</span></p>
+  {{else if not .IsManager}}<p class="alert alert-info" role="note"><span class="alert-icon" aria-hidden="true">i</span><span><strong>Tryb podglądu.</strong> Jako {{.RoleLabel}} możesz przeglądać dane klasy i raporty. Zmiany wprowadza skarbnik.</span></p>{{end}}
   {{template "flashes" .}}
   {{template "content" .}}
 </main>

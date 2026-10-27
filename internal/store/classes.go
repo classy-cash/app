@@ -17,17 +17,19 @@ type Class struct {
 	BlikPhone       string
 	TransferAccount string
 	CreatedAt       time.Time
+	ArchivedAt      *time.Time // set = read-only history of a finished school year
 }
 
 func scanClass(r interface{ Scan(...any) error }) (Class, error) {
 	var c Class
 	var created string
-	err := r.Scan(&c.ID, &c.Name, &c.SchoolName, &c.BlikPhone, &c.TransferAccount, &created)
-	c.CreatedAt = parseTime(created)
+	var archived sql.NullString
+	err := r.Scan(&c.ID, &c.Name, &c.SchoolName, &c.BlikPhone, &c.TransferAccount, &created, &archived)
+	c.CreatedAt, c.ArchivedAt = parseTime(created), parseNullTime(archived)
 	return c, err
 }
 
-const classCols = `id, name, school_name, blik_phone, transfer_account, created_at`
+const classCols = `id, name, school_name, blik_phone, transfer_account, created_at, archived_at`
 
 // CreateClass adds a class.
 func (s *Store) CreateClass(ctx context.Context, name string) (Class, error) {
@@ -61,10 +63,10 @@ func (s *Store) UpdateClass(ctx context.Context, c Class) error {
 
 // ClassesFor lists the classes a user may enter: all for admins, memberships otherwise.
 func (s *Store) ClassesFor(ctx context.Context, u User) ([]Class, error) {
-	q := `SELECT ` + classCols + ` FROM classes ORDER BY id`
+	q := `SELECT ` + classCols + ` FROM classes ORDER BY archived_at IS NOT NULL, id`
 	args := []any{}
 	if !u.IsAdmin {
-		q = `SELECT c.id, c.name, c.school_name, c.blik_phone, c.transfer_account, c.created_at FROM classes c JOIN memberships m ON m.class_id = c.id WHERE m.user_id = ? ORDER BY c.id`
+		q = `SELECT c.id, c.name, c.school_name, c.blik_phone, c.transfer_account, c.created_at, c.archived_at FROM classes c JOIN memberships m ON m.class_id = c.id WHERE m.user_id = ? ORDER BY c.archived_at IS NOT NULL, c.id`
 		args = append(args, u.ID)
 	}
 	rows, err := s.DB.QueryContext(ctx, q, args...)
@@ -105,8 +107,14 @@ func (s *Store) RoleIn(ctx context.Context, u User, classID int64) (string, erro
 	return role, nil
 }
 
-// CanManage reports treasurer-level access to the class (treasurer role or administrator).
+// CanManage reports treasurer-level access to the class (treasurer role or administrator). An archived class
+// is read-only for everyone, administrators included, until it is restored.
 func (s *Store) CanManage(ctx context.Context, u User, classID int64) bool {
+	return s.hasManagerRole(ctx, u, classID) && !s.IsArchived(ctx, classID)
+}
+
+// hasManagerRole is the role check behind CanManage, ignoring the archive flag.
+func (s *Store) hasManagerRole(ctx context.Context, u User, classID int64) bool {
 	if u.IsAdmin {
 		var exists int
 		return s.DB.QueryRowContext(ctx, `SELECT 1 FROM classes WHERE id = ?`, classID).Scan(&exists) == nil
@@ -115,13 +123,19 @@ func (s *Store) CanManage(ctx context.Context, u User, classID int64) bool {
 	return err == nil && role == RoleTreasurer
 }
 
+// IsArchived reports whether the class is archived.
+func (s *Store) IsArchived(ctx context.Context, classID int64) bool {
+	var at sql.NullString
+	return s.DB.QueryRowContext(ctx, `SELECT archived_at FROM classes WHERE id = ?`, classID).Scan(&at) == nil && at.Valid
+}
+
 // IsCouncil reports a chairperson or deputy role in the class.
 func IsCouncil(role string) bool { return role == RolePresident || role == RoleVicePresident }
 
 // CanView reports read access to the class panel and reports: the treasurer and administrators
 // (who can also change things) plus the class council, who can only look.
 func (s *Store) CanView(ctx context.Context, u User, classID int64) bool {
-	if s.CanManage(ctx, u, classID) {
+	if s.hasManagerRole(ctx, u, classID) {
 		return true
 	}
 	role, err := s.RoleIn(ctx, u, classID)
@@ -272,3 +286,98 @@ func (s *Store) ParentRegistrationEnabled(ctx context.Context) bool {
 
 // AppName is the display name of the installation.
 func (s *Store) AppName(ctx context.Context) string { return s.Setting(ctx, "app_name", "Classy Cash") }
+
+// ArchiveClass archives or restores a class.
+func (s *Store) ArchiveClass(ctx context.Context, classID int64, archived bool) error {
+	var at any
+	if archived {
+		at = ts(s.Now())
+	}
+	res, err := s.DB.ExecContext(ctx, `UPDATE classes SET archived_at = ? WHERE id = ?`, at, classID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// RolloverClass starts the next school year from an existing class: a new class with the same payee details,
+// the active students with their parent links, the parents' memberships and the treasurer. Contributions,
+// payments, the ledger and the class council are not carried over. With archiveOld the previous class is
+// archived and, when it was the bank-notification class, the new one takes over that role. It returns the new
+// class and the number of students copied.
+func (s *Store) RolloverClass(ctx context.Context, fromID int64, newName string, archiveOld bool) (Class, int, error) {
+	newName = strings.TrimSpace(newName)
+	if newName == "" {
+		return Class{}, 0, errf(ErrInvalid, "class name is required")
+	}
+	var newID int64
+	copied := 0
+	err := s.InTx(ctx, func(tx *sql.Tx) error {
+		old, err := scanClass(tx.QueryRowContext(ctx, `SELECT `+classCols+` FROM classes WHERE id = ?`, fromID))
+		if err != nil {
+			return wrapNotFound(err)
+		}
+		res, err := tx.ExecContext(ctx, `INSERT INTO classes (name, school_name, blik_phone, transfer_account, created_at) VALUES (?,?,?,?,?)`,
+			newName, old.SchoolName, old.BlikPhone, old.TransferAccount, ts(s.Now()))
+		if err != nil {
+			return err
+		}
+		newID, _ = res.LastInsertId()
+		srows, err := tx.QueryContext(ctx, `SELECT id, first_name, last_name FROM students WHERE class_id = ? AND deleted_at IS NULL ORDER BY id`, fromID)
+		if err != nil {
+			return err
+		}
+		type stu struct {
+			id          int64
+			first, last string
+		}
+		var students []stu
+		for srows.Next() {
+			var x stu
+			if err := srows.Scan(&x.id, &x.first, &x.last); err != nil {
+				srows.Close()
+				return err
+			}
+			students = append(students, x)
+		}
+		srows.Close()
+		for _, x := range students {
+			r, err := tx.ExecContext(ctx, `INSERT INTO students (class_id, first_name, last_name) VALUES (?,?,?)`, newID, x.first, x.last)
+			if err != nil {
+				return err
+			}
+			nid, _ := r.LastInsertId()
+			if _, err := tx.ExecContext(ctx, `INSERT INTO student_parents (student_id, user_id) SELECT ?, user_id FROM student_parents WHERE student_id = ?`, nid, x.id); err != nil {
+				return err
+			}
+			copied++
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO memberships (user_id, class_id, role) SELECT DISTINCT sp.user_id, ?, 'parent' FROM student_parents sp JOIN students st ON st.id = sp.student_id WHERE st.class_id = ?`, newID, newID); err != nil {
+			return err
+		}
+		// The treasurer carries on (also a parent of a copied student: the treasurer seat wins).
+		if _, err := tx.ExecContext(ctx, `DELETE FROM memberships WHERE class_id = ? AND user_id IN (SELECT user_id FROM memberships WHERE class_id = ? AND role = 'treasurer')`, newID, fromID); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO memberships (user_id, class_id, role) SELECT user_id, ?, 'treasurer' FROM memberships WHERE class_id = ? AND role = 'treasurer'`, newID, fromID); err != nil {
+			return err
+		}
+		if archiveOld {
+			if _, err := tx.ExecContext(ctx, `UPDATE classes SET archived_at = COALESCE(archived_at, ?) WHERE id = ?`, ts(s.Now()), fromID); err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(ctx, `UPDATE settings SET value = ? WHERE key = 'bank_class_id' AND value = ?`, itoa(newID), itoa(fromID)); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return Class{}, 0, err
+	}
+	c, err := s.ClassByID(ctx, newID)
+	return c, copied, err
+}

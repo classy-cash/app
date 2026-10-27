@@ -99,6 +99,14 @@ and resource sampling have no counterpart: those mechanisms do not exist in the 
     parent listing their children; at most one per parent per 72 h; never scheduled; erased accounts and parents
     of cancelled/paid obligations are skipped. Tested by `TestReminder*`, `TestRemindersOverHTTPAreManagerOnly`.
 
+22. **Class archive and school-year rollover (new).** The administrator archives a class (read-only for everyone,
+    administrators included; parents cannot open new payments; history and reports stay readable; restorable)
+    or starts the next year from it: a new class with the same payee details, the active students with their
+    parent links, the parents' memberships and the treasurer. Contributions, payments, the ledger and the
+    class council are not carried over; with "archive old" the bank-notification class follows the new one.
+    Migration `0004`. Tested by `TestArchivedClass*`, `TestRollover*`, `TestArchivingAClassFreezesItOverHTTP`,
+    `TestRolloverFromTheAdminPage`.
+
 ## Not implemented (existed only as data fields or unwired templates in PHP)
 
 * Expense attachments (the PHP entity had a path column but no upload UI).
@@ -119,6 +127,5 @@ and resource sampling have no counterpart: those mechanisms do not exist in the 
 * Reversing the *second* of two part-payments on one obligation reopens the obligation as fully pending even
   though the first part stays in the till (an obligation links to its latest payment only). Rare; the ledger and
   cash balance are always right.
-* Still missing (reviewed, not built): per-student amounts (sibling discounts), class archive/year rollover,
-  expense attachments.
+* Still missing (reviewed, not built): per-student amounts (sibling discounts), expense attachments.
 * MX-based webmail detection is tested with a fake resolver only (real DNS is not exercised in CI).

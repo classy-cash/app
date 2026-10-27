@@ -13,6 +13,9 @@ func (s *Server) adminRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /admin/mail/{id}", s.needAdmin(s.handleMailView))
 	mux.HandleFunc("GET /admin/classes", s.needAdmin(s.handleClasses))
 	mux.HandleFunc("POST /admin/classes", s.needAdmin(s.handleClassCreate))
+	mux.HandleFunc("POST /admin/classes/{id}/archive", s.needAdmin(s.handleClassArchive))
+	mux.HandleFunc("POST /admin/classes/{id}/restore", s.needAdmin(s.handleClassRestore))
+	mux.HandleFunc("POST /admin/classes/{id}/rollover", s.needAdmin(s.handleClassRollover))
 }
 
 func (s *Server) handleMailList(w http.ResponseWriter, r *http.Request) {
@@ -74,6 +77,34 @@ func (s *Server) handleClassCreate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	s.setFlash(w, r, "success", "Klasa została utworzona.")
+	s.redirect(w, r, "/admin/classes")
+}
+
+func (s *Server) handleClassArchive(w http.ResponseWriter, r *http.Request) {
+	if err := s.Store.ArchiveClass(r.Context(), pathID(r, "id"), true); err != nil {
+		s.flashErr(w, r, "/admin/classes", err)
+		return
+	}
+	s.setFlash(w, r, "success", "Klasa została zarchiwizowana i jest teraz tylko do odczytu.")
+	s.redirect(w, r, "/admin/classes")
+}
+
+func (s *Server) handleClassRestore(w http.ResponseWriter, r *http.Request) {
+	if err := s.Store.ArchiveClass(r.Context(), pathID(r, "id"), false); err != nil {
+		s.flashErr(w, r, "/admin/classes", err)
+		return
+	}
+	s.setFlash(w, r, "success", "Klasa została przywrócona.")
+	s.redirect(w, r, "/admin/classes")
+}
+
+func (s *Server) handleClassRollover(w http.ResponseWriter, r *http.Request) {
+	c, n, err := s.Store.RolloverClass(r.Context(), pathID(r, "id"), r.PostFormValue("name"), r.PostFormValue("archive_old") != "")
+	if err != nil {
+		s.flashErr(w, r, "/admin/classes", err)
+		return
+	}
+	s.setFlash(w, r, "success", "Utworzono klasę „"+c.Name+"” z "+strconv.Itoa(n)+" uczniami z poprzedniego roku.")
 	s.redirect(w, r, "/admin/classes")
 }
 
