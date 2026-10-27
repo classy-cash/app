@@ -115,10 +115,45 @@ func run(cmd string, args []string, cfg *config.Config, log *slog.Logger) error 
 		}
 		defer conn.Close()
 		return store.New(conn, cfg.Location).RecalculateLedger(context.Background())
+	case "export-user", "erase-user":
+		return userData(cmd, cfg, args)
 	case "serve":
 		return serve(cfg, log)
 	}
 	return fmt.Errorf("unknown command %q", cmd)
+}
+
+// userData serves data-subject requests from the operator: export prints the person's data as JSON,
+// erase anonymises the account (see store.EraseUser).
+func userData(cmd string, cfg *config.Config, args []string) error {
+	if len(args) != 1 {
+		return fmt.Errorf("usage: classycash %s EMAIL", cmd)
+	}
+	conn, err := open(cfg)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	st := store.New(conn, cfg.Location)
+	ctx := context.Background()
+	u, err := st.UserByEmail(ctx, args[0])
+	if err != nil {
+		return fmt.Errorf("no account with that address: %w", err)
+	}
+	if cmd == "export-user" {
+		ex, err := st.ExportUser(ctx, u.ID)
+		if err != nil {
+			return err
+		}
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(ex)
+	}
+	if err := st.EraseUser(ctx, u.ID); err != nil {
+		return err
+	}
+	fmt.Printf("account %d anonymised\n", u.ID)
+	return nil
 }
 
 func configCheck(cfg *config.Config) error {

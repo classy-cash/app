@@ -17,5 +17,18 @@
     <button class="btn btn-outline" type="submit">Zapisz hasło</button>
   </form>
 </section>{{end}}
+<section class="parent-section" aria-labelledby="data-h">
+  <h2 id="data-h" class="h3">Moje dane</h2>
+  <p class="small muted">Możesz pobrać kopię wszystkiego, co aplikacja przechowuje o Twoim koncie.</p>
+  <p><a class="btn btn-outline" href="/profile/export" download>Pobierz moje dane (JSON)</a></p>
+  {{if not .Data.DemoLocked}}<details class="manage"><summary>Usuń moje konto</summary>
+    <p class="small">Imię, adres e-mail, telefon i hasło zostaną usunięte, a konto zanonimizowane. Zapisy księgowe klasy (wpłaty, saldo kasy) pozostają, bo należą do klasy, ale nie wskazują już na Ciebie. Dzieci pozostają na liście klasy bez powiązania z Twoim kontem. Tej operacji nie można cofnąć.</p>
+    <form method="post" action="/profile/delete" class="stack" data-confirm="Na pewno usunąć konto? Tej operacji nie można cofnąć.">{{template "csrf" .CSRF}}
+      {{if .Data.HasPassword}}<div class="field"><label class="label" for="del-pass">Aktualne hasło</label><input class="input" id="del-pass" name="current" type="password" autocomplete="current-password" required></div>{{end}}
+      <div class="field"><label class="label" for="del-confirm">Wpisz USUŃ, aby potwierdzić</label><input class="input" id="del-confirm" name="confirm" autocomplete="off" required></div>
+      <button class="btn btn-ghost danger" type="submit">Usuń konto bezpowrotnie</button>
+    </form>
+  </details>{{end}}
+</section>
 <section class="parent-section"><form method="post" action="/logout">{{template "csrf" .CSRF}}<button class="btn btn-outline btn-block" type="submit">Wyloguj się</button></form></section>
 {{end}}

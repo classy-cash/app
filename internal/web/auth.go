@@ -117,7 +117,7 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, u store.Us
 // sendLoginLink emails a one-time sign-in link. Unknown addresses get nothing (no enumeration).
 func (s *Server) sendLoginLink(r *http.Request, email string) {
 	u, err := s.Store.UserByEmail(r.Context(), email)
-	if err != nil {
+	if err != nil || store.IsErased(u) {
 		return
 	}
 	raw, err := s.Store.CreateAuthToken(r.Context(), u.ID, store.TokenLogin, time.Hour)
@@ -256,7 +256,7 @@ func (s *Server) handleResetRequestForm(w http.ResponseWriter, r *http.Request) 
 func (s *Server) handleResetRequest(w http.ResponseWriter, r *http.Request) {
 	email := store.NormalizeEmail(r.PostFormValue("email"))
 	if !s.Cfg.Demo && validEmail(email) && s.limiter.allow("reset:"+s.clientIP(r), 10, 15*time.Minute) && s.limiter.allow("reset:"+email, 3, 15*time.Minute) {
-		if u, err := s.Store.UserByEmail(r.Context(), email); err == nil {
+		if u, err := s.Store.UserByEmail(r.Context(), email); err == nil && !store.IsErased(u) {
 			if raw, err := s.Store.CreateAuthToken(r.Context(), u.ID, store.TokenReset, time.Hour); err == nil {
 				m := mailpkg.PasswordReset(s.Store.Branding(r.Context()), u.Name, s.Cfg.BaseURL+"/reset-password/reset/"+raw)
 				_ = s.Store.Enqueue(r.Context(), mailpkg.Message{Key: "reset-" + auth.HashToken(raw)[:24], ToEmail: u.Email, ToName: u.Name, Subject: m.Subject, HTML: m.HTML, Text: m.Text})

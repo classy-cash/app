@@ -89,6 +89,11 @@ and resource sampling have no counterpart: those mechanisms do not exist in the 
     keep the explicit refund transition. Migration `0003` is purely additive (nullable columns and columns with
     defaults), so existing seed SQL keeps working.
 
+20. **Personal data (new).** Export and self-service erasure of an account, plus operator commands; see
+    INTEGRATION.md §2. Tested by `TestExportCoversEverythingHeldAboutTheAccount`,
+    `TestEraseAnonymisesButKeepsTheClassBooks`, `TestEraseRefusesTreasurerAndLastAdmin`,
+    `TestProfileExportIsPrivateAndComplete`, `TestParentCanEraseTheirOwnAccount`.
+
 ## Not implemented (existed only as data fields or unwired templates in PHP)
 
 * Expense attachments (the PHP entity had a path column but no upload UI).
@@ -110,5 +115,5 @@ and resource sampling have no counterpart: those mechanisms do not exist in the 
   though the first part stays in the till (an obligation links to its latest payment only). Rare; the ledger and
   cash balance are always right.
 * Still missing (reviewed, not built): per-student amounts (sibling discounts), class archive/year rollover,
-  parent data export/erasure, reminders to parents, expense attachments.
+  reminders to parents, expense attachments.
 * MX-based webmail detection is tested with a fake resolver only (real DNS is not exercised in CI).

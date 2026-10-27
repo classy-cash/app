@@ -54,7 +54,16 @@ membership and the default settings in one transaction.
 * One static, CGO-free binary (`classycash`) with templates, assets, fonts and migrations embedded.
   SQLite is embedded (pure Go). No other process or service is required.
 * Commands: `serve` (default; applies pending migrations itself at start-up), `migrate`, `backup FILE`,
-  `demo-load [FILE]`, `ledger-rebuild`, `config-check`, `version`.
+  `demo-load [FILE]`, `ledger-rebuild`, `export-user EMAIL`, `erase-user EMAIL`, `config-check`, `version`.
+* **Personal data (GDPR).** Every signed-in person can download their data (`GET /profile/export`, JSON) and
+  erase their account on the profile page (type `USUŃ` + password). The operator serves requests received by
+  e-mail with `classycash export-user EMAIL` (JSON on stdout) and `classycash erase-user EMAIL`. Erasure
+  anonymises the account (placeholder address `erased-<id>@erased.invalid`, name/phone/password removed,
+  sessions, sign-in links, memberships, parent links and mail addressed to the person deleted); payments,
+  obligations and the ledger stay because they are the class's accounting records, but no longer identify the
+  person. Children stay on the class roster (the treasurer controls that data). A treasurer or the last
+  administrator must be replaced first (the command refuses). Bank-transfer sender names, which come from the
+  bank's notification, are accounting data and are not touched. Disabled in demo mode.
 * Graceful shutdown on `SIGTERM`/`SIGINT` (20 s drain, WAL checkpoint).
 * **Endpoints for supervisors**
   * `GET /health` (alias `/ping`) → `200 ok`: liveness, touches nothing.

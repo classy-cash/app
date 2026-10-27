@@ -579,6 +579,13 @@ INSERT INTO settings (key,value) VALUES ('demo_accounts','[{"label":"Skarbnik","
 	if u, _ := h.st.UserByEmail(ctx, "skarbnik@example.test"); u.PasswordHash != "" {
 		t.Fatal("demo credentials must not be changeable")
 	}
+	if _, page, _ := c.get("/profile"); strings.Contains(page, "Usuń moje konto") {
+		t.Fatal("demo accounts must not offer erasure")
+	}
+	c.post("/profile/delete", url.Values{"confirm": {"USUŃ"}})
+	if u, _ := h.st.UserByEmail(ctx, "skarbnik@example.test"); store.IsErased(u) {
+		t.Fatal("demo accounts must not be erasable")
+	}
 	if code, _, _ := h.client().get("/onboarding"); code == 200 {
 		t.Fatal("onboarding must be closed in demo mode")
 	}

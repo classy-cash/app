@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -17,6 +18,8 @@ func (s *Server) parentRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /profile", s.needInstalled(s.needUser(s.handleProfile)))
 	mux.HandleFunc("POST /profile", s.needInstalled(s.needUser(s.handleProfileSave)))
 	mux.HandleFunc("POST /profile/password", s.needInstalled(s.needUser(s.handlePasswordChange)))
+	mux.HandleFunc("GET /profile/export", s.needInstalled(s.needUser(s.handleProfileExport)))
+	mux.HandleFunc("POST /profile/delete", s.needInstalled(s.needUser(s.handleProfileErase)))
 }
 
 func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
@@ -156,6 +159,51 @@ func (s *Server) handlePasswordChange(w http.ResponseWriter, r *http.Request) {
 		s.setFlash(w, r, "success", "Hasło zostało zmienione. Zaloguj się ponownie.")
 		http.SetCookie(w, s.cookie(cookieSession, "", -1))
 		s.redirect(w, r, "/login?mode=password")
+		return
+	}
+	s.redirect(w, r, "/profile")
+}
+
+// handleProfileExport lets a person download everything the application holds about them (GDPR art. 15).
+func (s *Server) handleProfileExport(w http.ResponseWriter, r *http.Request) {
+	ex, err := s.Store.ExportUser(r.Context(), state(r).user.ID)
+	if err != nil {
+		s.fail(w, r, http.StatusInternalServerError, "Nie udało się przygotować eksportu.")
+		return
+	}
+	w.Header().Set("Content-Disposition", `attachment; filename="moje-dane-classy-cash.json"`)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	_ = enc.Encode(ex)
+}
+
+// handleProfileErase anonymises the signed-in account after an explicit confirmation (GDPR art. 17).
+func (s *Server) handleProfileErase(w http.ResponseWriter, r *http.Request) {
+	u := state(r).user
+	if s.Cfg.Demo {
+		s.setFlash(w, r, "error", "W trybie demo nie można usuwać kont.")
+		s.redirect(w, r, "/profile")
+		return
+	}
+	if strings.TrimSpace(r.PostFormValue("confirm")) != "USUŃ" || (u.PasswordHash != "" && !auth.VerifyPassword(u.PasswordHash, r.PostFormValue("current"))) {
+		s.setFlash(w, r, "error", "Aby usunąć konto, wpisz słowo USUŃ i podaj aktualne hasło.")
+		s.redirect(w, r, "/profile")
+		return
+	}
+	switch err := s.Store.EraseUser(r.Context(), u.ID); {
+	case errors.Is(err, store.ErrIsTreasurer):
+		s.setFlash(w, r, "error", "Jesteś skarbnikiem klasy. Poproś administratora o przekazanie roli, a potem usuń konto.")
+	case errors.Is(err, store.ErrLastAdmin):
+		s.setFlash(w, r, "error", "Jesteś jedynym administratorem. Najpierw ustanów drugiego.")
+	case err != nil:
+		s.Log.Error("erase user", "err", err)
+		s.setFlash(w, r, "error", "Nie udało się usunąć konta. Spróbuj ponownie.")
+	default:
+		http.SetCookie(w, s.cookie(cookieSession, "", -1))
+		s.setFlash(w, r, "success", "Konto zostało usunięte, a Twoje dane osobowe zanonimizowane.")
+		s.redirect(w, r, "/login")
 		return
 	}
 	s.redirect(w, r, "/profile")
