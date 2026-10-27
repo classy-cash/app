@@ -172,9 +172,10 @@ func (s *Server) handlePayments(w http.ResponseWriter, r *http.Request) {
 		events = append(events, rejected...)
 	}
 	parsed, _ := s.Store.BankEvents(r.Context(), "parsed", 1)
+	payments, _ := s.Store.RecentPayments(r.Context(), cid, 50)
 	p := s.page(r, "Operacje bankowe", "payments", map[string]any{
 		"Transfers": transfers, "Last": s.Store.LastBankEvent(r.Context()), "Events": events,
-		"BankAddress": s.Cfg.Bank.Address, "BankEnabled": s.Cfg.Bank.Enabled(), "FirstParsed": len(parsed) > 0,
+		"BankAddress": s.Cfg.Bank.Address, "BankEnabled": s.Cfg.Bank.Enabled(), "FirstParsed": len(parsed) > 0, "Payments": payments,
 	})
 	p.Layout = "layout_treasurer"
 	s.render(w, r, "t_payments", p, http.StatusOK)

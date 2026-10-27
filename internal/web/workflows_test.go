@@ -306,3 +306,34 @@ func TestClassCouncilIsReadOnlyOverHTTP(t *testing.T) {
 		t.Fatal("outstanding report page")
 	}
 }
+
+func TestPaymentStatesAreVisibleAndActionable(t *testing.T) {
+	h := newHarness(t, nil)
+	tr, cls := h.onboarded()
+	ctx := context.Background()
+	anna, kid := h.parent("anna@example.com", "Anna Kowalska", cls, "Jan", "Kowalski")
+	h.st.CreateContribution(ctx, cls.ID, "Wycieczka", 5000, nil, []int64{kid.ID})
+	pay, err := h.st.CreateFastPayment(ctx, anna, cls.ID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, body, _ := tr.get("/treasurer/payments")
+	if !strings.Contains(body, "Płatności rodziców") || !strings.Contains(body, pay.Code) || !strings.Contains(body, "Oznacz jako nieudaną") {
+		t.Fatal("pending payment and its actions must be visible")
+	}
+	id := strconv.FormatInt(pay.ID, 10)
+	tr.post("/treasurer/payment/"+id+"/transition", url.Values{"action": {"pay"}})
+	if _, body, _ = tr.get("/treasurer/payments"); !strings.Contains(body, "Zapisz zwrot") {
+		t.Fatal("a paid payment offers a refund record")
+	}
+	tr.post("/treasurer/payment/"+id+"/transition", url.Values{"action": {"refund"}})
+	if g, _ := h.st.PaymentByID(ctx, cls.ID, pay.ID); g.Status != store.PaymentRefunded {
+		t.Fatalf("status %s", g.Status)
+	}
+	if code, _, _ := tr.post("/treasurer/payment/"+id+"/transition", url.Values{"action": {"pay"}}); code != 303 {
+		t.Fatal(code)
+	}
+	if g, _ := h.st.PaymentByID(ctx, cls.ID, pay.ID); g.Status != store.PaymentRefunded {
+		t.Fatal("a refunded payment cannot be paid again")
+	}
+}

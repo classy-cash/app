@@ -52,4 +52,22 @@
     </tbody>
   </table></div>
 </section>
+
+<section class="card" aria-labelledby="pp-h">
+  <h2 id="pp-h" class="h3">Płatności rodziców</h2>
+  <p class="small muted">Kody płatności wygenerowane przez rodziców i ich stan. Wygasłe płatności (po 24 h) nadal można przypisać do przelewu.</p>
+  <div class="table-wrap"><table class="table responsive">
+    <thead><tr><th scope="col">Płatność</th><th scope="col">Rodzic</th><th scope="col" class="num">Kwota</th><th scope="col">Status</th><th scope="col">Akcja</th></tr></thead><tbody>
+    {{range .Data.Payments}}<tr>
+      <td data-label="Płatność"><p class="strong">{{.Label}}</p><p class="small muted">{{datetime .CreatedAt}}{{if .Code}} · kod <span class="mono code">{{.Code}}</span>{{end}}</p></td>
+      <td data-label="Rodzic">{{.UserName}}</td>
+      <td data-label="Kwota" class="num strong">{{money .AmountMinor}}</td>
+      <td data-label="Status">{{if eq .Status "paid"}}<span class="badge badge-ok">✓ {{status .Status}}</span>{{else if eq .Status "pending"}}<span class="badge badge-info">… {{status .Status}}</span>{{else if eq .Status "expired"}}<span class="badge badge-warn">! {{status .Status}}</span>{{else if eq .Status "refunded"}}<span class="badge badge-muted">↺ {{status .Status}}</span>{{else}}<span class="badge badge-danger">✕ {{status .Status}}</span>{{end}}</td>
+      <td data-label="Akcja" class="actions-cell">{{if not $.IsManager}}<span class="muted small">—</span>{{else}}
+        {{if eq .Status "pending"}}<form method="post" action="/treasurer/payment/{{.ID}}/transition" class="inline">{{template "csrf" $.CSRF}}<input type="hidden" name="action" value="fail"><button class="btn btn-ghost btn-sm danger" type="submit">Oznacz jako nieudaną</button></form>{{end}}
+        {{if eq .Status "paid"}}<form method="post" action="/treasurer/payment/{{.ID}}/transition" class="inline" data-confirm="Zapisać zwrot tej wpłaty? To tylko zapis księgowy — aplikacja nie przelewa pieniędzy.">{{template "csrf" $.CSRF}}<input type="hidden" name="action" value="refund"><button class="btn btn-ghost btn-sm" type="submit">Zapisz zwrot</button></form>{{end}}
+        {{if or (eq .Status "pending") (eq .Status "expired")}}<form method="post" action="/treasurer/payment/{{.ID}}/transition" class="inline" data-confirm="Oznaczyć tę płatność jako opłaconą bez przelewu?">{{template "csrf" $.CSRF}}<input type="hidden" name="action" value="pay"><button class="btn btn-outline btn-sm" type="submit">Oznacz jako opłaconą</button></form>{{end}}
+      {{end}}</td>
+    </tr>{{else}}<tr><td colspan="5" class="empty">Brak płatności</td></tr>{{end}}</tbody></table></div>
+</section>
 {{end}}

@@ -709,3 +709,30 @@ func (s *Store) ManualExpense(ctx context.Context, classID int64, label string, 
 	})
 	return id, err
 }
+
+// RecentPayments lists the class's payments (any state), newest first, for the treasurer's overview.
+func (s *Store) RecentPayments(ctx context.Context, classID int64, limit int) ([]Payment, error) {
+	rows, err := s.DB.QueryContext(ctx, `SELECT id FROM payments WHERE class_id = ? ORDER BY created_at DESC, id DESC LIMIT ?`, classID, limit)
+	if err != nil {
+		return nil, err
+	}
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	rows.Close()
+	out := make([]Payment, 0, len(ids))
+	for _, id := range ids {
+		p, err := s.PaymentByID(ctx, classID, id)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, nil
+}

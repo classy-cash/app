@@ -21,7 +21,7 @@ tests to the Go rewrite and lists every **deliberate** difference. "Tested" name
 | Payment codes, "Zapłać BLIKIEM" | `FastPaymentModalComponent` | `CreateFastPayment`, `/parent/pay` JSON, dialog + status polling | `TestFastPaymentBundlesAndIsStable`, `TestParentFastPaymentJSON` |
 | Partial/complete settlement, over-/underpayment | `Payment::isPaid`, workflows | `attachTransfer`, `settlePayment` | `TestPartialThenCompletePayment`, `TestMatchByCodeSettlesAndBooksCash` |
 | Manual income / expenses | `manualTransactions()` | `ManualIncome`, `ManualExpense` | `TestLedgerRunningBalanceAndManualMoney`, `TestPartialCashLeavesObligationOpen` |
-| Payment states pending/paid/failed/refunded/expired | `workflow.yaml` | `Transition`, `ExpirePending` | `TestPaymentStateMachine` |
+| Payment states pending/paid/failed/refunded/expired | `workflow.yaml` | `Transition`, `ExpirePending`, "Płatności rodziców" list with actions | `TestPaymentStateMachine`, `TestPaymentStatesAreVisibleAndActionable` |
 | Transfers, Alior parsing | `AliorMailParser`, `TransferMoneyParser` | `internal/alior`, `internal/money` | `alior_test`, `money_test` (legacy fixtures) |
 | Code matching incl. split codes, 0/O | `TransferPaymentMatcher::matchByPaymentCode` | `internal/matcher.Candidates`, `matchTransfer` | `TestLegacyMatchingTable`, `TestCandidates*`, `TestMatchByCodeSettlesAndBooksCash` |
 | Historical matching, ranking, hints | `matchByHistoricalData`, `buildMatchHints` | `historicalMatch`, `Suggestions` | `TestHistoricalMatchWhenSingleCandidate`, `TestHistoricalMatchRefusesAmbiguity`, `TestSuggestionsRankHistoricalStudentFirst` |
