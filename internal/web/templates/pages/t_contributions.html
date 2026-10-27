@@ -1,6 +1,15 @@
 {{define "content"}}
 <header class="page-head"><div><h1 class="serif">Zarządzanie składkami</h1><p class="muted">Twórz nowe cele i edytuj obowiązek wpłat dla poszczególnych uczniów.</p></div></header>
-{{if .IsManager}}<section class="card" aria-labelledby="new-h">
+{{if .IsManager}}<section class="card" aria-labelledby="rem-h">
+  <h2 id="rem-h" class="h3">Przypomnienia dla rodziców</h2>
+  <p class="small muted">Wysyła e-mail do rodziców, którzy mają nieopłacone składki — jedna wiadomość na rodzica, z listą ich dzieci. Rodzic dostaje najwyżej jedno przypomnienie na 3 dni.</p>
+  <form method="post" action="/treasurer/reminders" class="inline-form" data-confirm="Wysłać przypomnienia do rodziców?">{{template "csrf" .CSRF}}
+    <label class="visually-hidden" for="rem-scope">Zakres</label>
+    <select class="input" id="rem-scope" name="scope"><option value="overdue">Tylko zaległe (po terminie)</option><option value="all">Wszystkie nieopłacone</option></select>
+    <button class="btn btn-outline" type="submit">Wyślij przypomnienia</button>
+  </form>
+</section>
+<section class="card" aria-labelledby="new-h">
   <h2 id="new-h" class="h3">Utwórz składkę</h2>
   <form method="post" action="/treasurer/contributions" class="stack">
     {{template "csrf" .CSRF}}
@@ -64,6 +73,7 @@
       <button class="btn btn-outline btn-sm" type="submit">Dodaj</button>
     </form>{{end}}
     <div class="row-actions start">
+      {{if not .Closed}}<form method="post" action="/treasurer/reminders" class="inline" data-confirm="Przypomnieć rodzicom o zbiórce „{{.Title}}”?">{{template "csrf" $.CSRF}}<input type="hidden" name="contribution_id" value="{{.ID}}"><input type="hidden" name="scope" value="all"><button class="btn btn-outline btn-sm" type="submit">Przypomnij rodzicom</button></form>{{end}}
       {{if .Closed}}<form method="post" action="/treasurer/contributions/{{.ID}}/reopen" class="inline">{{template "csrf" $.CSRF}}<button class="btn btn-outline btn-sm" type="submit">Wznów zbiórkę</button></form>
       {{else}}<form method="post" action="/treasurer/contributions/{{.ID}}/close" class="inline" data-confirm="Zakończyć zbiórkę „{{.Title}}”? Nowi uczniowie nie będą już do niej dopisywani.">{{template "csrf" $.CSRF}}
         <label class="check small"><input type="checkbox" name="cancel_unpaid" value="1"><span>anuluj obowiązki, za które nikt jeszcze nie zapłacił</span></label>

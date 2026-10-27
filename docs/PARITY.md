@@ -94,11 +94,16 @@ and resource sampling have no counterpart: those mechanisms do not exist in the 
     `TestEraseAnonymisesButKeepsTheClassBooks`, `TestEraseRefusesTreasurerAndLastAdmin`,
     `TestProfileExportIsPrivateAndComplete`, `TestParentCanEraseTheirOwnAccount`.
 
+21. **Parent reminders (new; PHP had unscheduled templates only).** The treasurer can mail parents of unpaid
+    obligations ("Przypomnienia dla rodziców": overdue only or all, class-wide or per collection). One mail per
+    parent listing their children; at most one per parent per 72 h; never scheduled; erased accounts and parents
+    of cancelled/paid obligations are skipped. Tested by `TestReminder*`, `TestRemindersOverHTTPAreManagerOnly`.
+
 ## Not implemented (existed only as data fields or unwired templates in PHP)
 
 * Expense attachments (the PHP entity had a path column but no upload UI).
-* In-app notification centre (`Notification` entity without UI) and daily reminder e-mails (templates inherited
-  from another project, never scheduled).
+* In-app notification centre (`Notification` entity without UI) and *scheduled* daily reminder e-mails
+  (templates inherited from another project, never scheduled); reminders are manual, see above.
 * The Gmail/IMAP import, Sentry/Swoole/Messenger plumbing, feature-flag bundle (replaced by one setting).
 * The duplicate "Budżet Klasy (Trójka)" link on the parent dashboard (it pointed at the treasurer dashboard).
 * Student *code* "CC-4B-JK" shown on the PHP student list was decorative and is not generated.
@@ -115,5 +120,5 @@ and resource sampling have no counterpart: those mechanisms do not exist in the 
   though the first part stays in the till (an obligation links to its latest payment only). Rare; the ledger and
   cash balance are always right.
 * Still missing (reviewed, not built): per-student amounts (sibling discounts), class archive/year rollover,
-  reminders to parents, expense attachments.
+  expense attachments.
 * MX-based webmail detection is tested with a fake resolver only (real DNS is not exercised in CI).

@@ -167,3 +167,50 @@ func TestCorrectionsAreForbiddenToParentsAndCouncil(t *testing.T) {
 		t.Fatal("council must not see the correction controls")
 	}
 }
+
+func TestRemindersOverHTTPAreManagerOnly(t *testing.T) {
+	h := newHarness(t, nil)
+	tr, cls := h.onboarded()
+	ctx := context.Background()
+	_, kid := h.parent("anna@example.com", "Anna Kowalska", cls, "Jan", "Kowalski")
+	cid, _ := h.st.CreateContribution(ctx, cls.ID, "Wycieczka", 5000, nil, []int64{kid.ID})
+
+	_, body, _ := tr.get("/treasurer/contributions")
+	if !strings.Contains(body, "Przypomnienia dla rodziców") || !strings.Contains(body, "Przypomnij rodzicom") {
+		t.Fatal("reminder controls expected for the treasurer")
+	}
+	if code, _, _ := tr.post("/treasurer/reminders", url.Values{"scope": {"all"}, "contribution_id": {id(cid)}}); code != 303 {
+		t.Fatal(code)
+	}
+	var queued int
+	mails, _ := h.st.RecentMail(ctx, 50)
+	for _, m := range mails {
+		if m.ToEmail == "anna@example.com" && strings.Contains(m.Subject, "Przypomnienie") {
+			queued++
+		}
+	}
+	if queued != 1 {
+		t.Fatalf("queued %d", queued)
+	}
+	tr.post("/treasurer/reminders", url.Values{"scope": {"all"}}) // double click: cooled down
+	mails, _ = h.st.RecentMail(ctx, 50)
+	if countSubject(mails, "Przypomnienie") != 1 {
+		t.Fatal("cooldown must prevent a second reminder")
+	}
+
+	anna := h.client()
+	anna.login("anna@example.com", "parentpass1")
+	if code, _, _ := anna.post("/treasurer/reminders", url.Values{"scope": {"all"}}); code != 403 {
+		t.Fatalf("parents must not send reminders: %d", code)
+	}
+}
+
+func countSubject(mails []store.OutboxMail, sub string) int {
+	n := 0
+	for _, m := range mails {
+		if strings.Contains(m.Subject, sub) {
+			n++
+		}
+	}
+	return n
+}

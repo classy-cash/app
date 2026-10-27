@@ -39,6 +39,7 @@ func (s *Server) treasurerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /treasurer/contributions/{id}/close", m(s.handleContributionClose))
 	mux.HandleFunc("POST /treasurer/contributions/{id}/reopen", m(s.handleContributionReopen))
 	mux.HandleFunc("POST /treasurer/contributions/{id}/delete", m(s.handleContributionDelete))
+	mux.HandleFunc("POST /treasurer/reminders", m(s.handleReminders))
 	mux.HandleFunc("POST /treasurer/obligations/{id}/payment", m(s.handleObligationPayment))
 	mux.HandleFunc("POST /treasurer/obligations/{id}/paid", m(s.handleObligationPaid))
 	mux.HandleFunc("POST /treasurer/obligations/{id}/cancel", m(s.handleObligationCancel))
@@ -400,6 +401,27 @@ func (s *Server) handleContributionDelete(w http.ResponseWriter, r *http.Request
 		return
 	}
 	s.setFlash(w, r, "success", "Zbiórka została usunięta.")
+	s.redirect(w, r, "/treasurer/contributions")
+}
+
+// handleReminders mails the parents of unpaid obligations; a deliberate action, never scheduled.
+func (s *Server) handleReminders(w http.ResponseWriter, r *http.Request) {
+	cid, _ := strconv.ParseInt(r.PostFormValue("contribution_id"), 10, 64)
+	res, err := s.Store.RemindParents(r.Context(), s.classID(r), cid, r.PostFormValue("scope") == "overdue", *state(r).user)
+	if err != nil {
+		s.flashErr(w, r, "/treasurer/contributions", err)
+		return
+	}
+	switch {
+	case res.Sent == 0 && res.Skipped == 0:
+		s.setFlash(w, r, "info", "Nie ma do kogo wysłać przypomnienia: brak nieopłaconych składek z przypisanym rodzicem.")
+	default:
+		msg := "Przypomnienia zaplanowano dla rodziców: " + strconv.Itoa(res.Sent) + "."
+		if res.Skipped > 0 {
+			msg += " Pominięto " + strconv.Itoa(res.Skipped) + " — dostali już przypomnienie w ciągu ostatnich 3 dni."
+		}
+		s.setFlash(w, r, "success", msg)
+	}
 	s.redirect(w, r, "/treasurer/contributions")
 }
 

@@ -186,6 +186,59 @@ func NewUserAdmin(b Branding, name, email string, id int64) Rendered {
 	return Rendered{subject, wrap(b, subject, body), text}
 }
 
+// ReminderLine is one open obligation in a reminder.
+type ReminderLine struct {
+	Student     string
+	Label       string
+	AmountMinor int64
+	DueAt       *time.Time
+}
+
+// ReminderData is everything a payment reminder needs.
+type ReminderData struct {
+	ParentName string
+	ClassName  string
+	Treasurer  string
+	Lines      []ReminderLine
+	BlikPhone  string
+	Account    string
+	PayURL     string
+}
+
+// Reminder asks a parent to settle the open obligations of their children.
+func Reminder(b Branding, d ReminderData, loc *time.Location) Rendered {
+	subject := "Przypomnienie o składkach — " + d.ClassName
+	var total int64
+	var rows, text strings.Builder
+	for _, l := range d.Lines {
+		total += l.AmountMinor
+		due := "bez terminu"
+		if l.DueAt != nil {
+			due = "termin: " + l.DueAt.In(loc).Format("02.01.2006")
+		}
+		fmt.Fprintf(&rows, `<li><strong>%s</strong> — %s, %s (%s)</li>`, esc(l.Label), esc(money.Format(l.AmountMinor)), esc(due), esc(l.Student))
+		fmt.Fprintf(&text, "- %s — %s, %s (%s)\n", l.Label, money.Format(l.AmountMinor), due, l.Student)
+	}
+	pay := ""
+	payText := ""
+	if d.BlikPhone != "" {
+		pay += "<li>BLIK na telefon: " + esc(d.BlikPhone) + "</li>"
+		payText += "BLIK na telefon: " + d.BlikPhone + "\n"
+	}
+	if d.Account != "" {
+		pay += "<li>Przelew na konto: " + esc(d.Account) + "</li>"
+		payText += "Przelew na konto: " + d.Account + "\n"
+	}
+	if pay != "" {
+		pay = "<p>Wpłatę możesz zrobić w aplikacji (otrzymasz tytuł z kodem) albo bezpośrednio:</p><ul>" + pay + "</ul>"
+	}
+	body := fmt.Sprintf(`<p>Witaj %s,</p><p>przypominamy o nieopłaconych składkach w klasie %s. Do zapłaty razem: <strong>%s</strong>.</p><ul>%s</ul>%s%s<p>Jeśli już zapłacono, zignoruj tę wiadomość — wpłata może jeszcze nie być zaksięgowana. W razie pytań skontaktuj się ze skarbnikiem: %s.</p>`,
+		esc(d.ParentName), esc(d.ClassName), esc(money.Format(total)), rows.String(), pay, button(d.PayURL, "Zapłać w aplikacji"), esc(d.Treasurer))
+	txt := fmt.Sprintf("Witaj %s,\n\nprzypominamy o nieopłaconych składkach w klasie %s. Do zapłaty razem: %s.\n\n%s\n%sZapłać w aplikacji: %s\n\nJeśli już zapłacono, zignoruj tę wiadomość. W razie pytań skontaktuj się ze skarbnikiem: %s.\n",
+		d.ParentName, d.ClassName, money.Format(total), text.String(), payText, d.PayURL, d.Treasurer)
+	return Rendered{subject, wrap(b, subject, body), txt}
+}
+
 // PartialPayment tells a parent that their transfer differs from the amount due.
 func PartialPayment(b Branding, parentName, label string, dueMinor, paidMinor int64) Rendered {
 	subject := "Wpłata różni się od należnej kwoty"
