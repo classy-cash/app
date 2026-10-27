@@ -16,7 +16,7 @@ tests to the Go rewrite and lists every **deliberate** difference. "Tested" name
 | Profile | `profile.html.twig` | `/profile` (name, phone, password) | `TestEveryTreasurerPageRenders` |
 | Roles: admin / treasurer / parent | `assertTreasurer`, `ClassRole` | `store.RoleIn/CanManage`, guards in `web/server.go` | `TestPermissionsAcrossRoles`, `TestPermissionsAndClassIsolation` |
 | Classes, memberships, one treasurer per class | entities + unique index | `classes`, `memberships`, partial unique index | `TestPermissionsAndClassIsolation` |
-| Students, parents, merge | `TreasurerController::mergeStudents` | `store/students.go` | `TestMergeStudents`, `TestPermissionsAcrossRoles` (class isolation) |
+| Students, parents, invitations, merge | `TreasurerController::mergeStudents`, `AddStudentComponent` | `store/students.go`, `web/treasurer.go` | `TestMergeStudents`, `TestTreasurerWorkflowsOverHTTP`, `TestPermissionsAcrossRoles` |
 | Contributions and per-student obligations | `contributions()` | `CreateContribution`, `ContributionViews` | `TestFastPaymentBundlesAndIsStable`, `TestCancelObligation` |
 | Payment codes, "Zapłać BLIKIEM" | `FastPaymentModalComponent` | `CreateFastPayment`, `/parent/pay` JSON, dialog + status polling | `TestFastPaymentBundlesAndIsStable`, `TestParentFastPaymentJSON` |
 | Partial/complete settlement, over-/underpayment | `Payment::isPaid`, workflows | `attachTransfer`, `settlePayment` | `TestPartialThenCompletePayment`, `TestMatchByCodeSettlesAndBooksCash` |
@@ -27,10 +27,10 @@ tests to the Go rewrite and lists every **deliberate** difference. "Tested" name
 | Historical matching, ranking, hints | `matchByHistoricalData`, `buildMatchHints` | `historicalMatch`, `Suggestions` | `TestHistoricalMatchWhenSingleCandidate`, `TestHistoricalMatchRefusesAmbiguity`, `TestSuggestionsRankHistoricalStudentFirst` |
 | Manual assign / reassign / unassigned | `AssignPaymentModalComponent`, `assignTransfer()` | `AssignTransfer`, `AssignTransferToObligation`, `UnassignTransfer` | `TestManualAssignReassignUnassign`, `TestAssignTransferToObligationWithoutPayment` |
 | Late/unmatched retry (12 h) | `TriggerMatchPaymentForTransferForPastTransfers` | `RematchRecent` every minute | `TestDuplicateLookingTransferGoesToReview` |
-| Unmatched-transfer admin e-mail | `TransferNotMatchedHandler` | `notifyUnmatched` (once per transfer) | `TestPartialThenCompletePayment` (mail rows), `mail_test` |
+| Unmatched-transfer admin e-mail | `TransferNotMatchedHandler` | `notifyUnmatched` (once per transfer) | `TestUnmatchedTransferAlertsAdminsOncePerTransfer` |
 | Settlement confirmation e-mails | `StudentPaymentSettlementSubscriber`, `SendSettlementConfirmationEmailHandler` | `queueSettlementMail` | `TestMatchByCodeSettlesAndBooksCash` |
 | Dashboard cards, recent operations, balance | `*Component` live components | `Summary`, `LedgerPage`, auto-refresh + "load more" in `app.js` | `TestLedgerRunningBalanceAndManualMoney`, `TestEveryTreasurerPageRenders` |
-| Settings | `SettingsType`, `SettingsDtoMapper` | `/treasurer/settings` | `TestEveryTreasurerPageRenders` |
+| Settings | `SettingsType`, `SettingsDtoMapper` | `/treasurer/settings` | `TestTreasurerWorkflowsOverHTTP` |
 | Bank notifications | IMAP polling (disabled in prod since 2026-09-22) | signed webhook, quarantine, replay | `bankmail/handler_test.go`, `TestWebhookEndToEndThroughMux` |
 | Maintenance mode | static page deploy | out of scope of the app (deployment layer) | – |
 

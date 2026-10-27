@@ -539,3 +539,29 @@ INSERT INTO memberships (user_id,class_id,role) VALUES (1,1,'treasurer');`
 		t.Fatalf("empty reload: %d %v", gen, err)
 	}
 }
+
+func TestUnmatchedTransferAlertsAdminsOncePerTransfer(t *testing.T) {
+	f := newFixture(t)
+	// With no open payments there is nothing the transfer could belong to: no alert (legacy rule).
+	f.ingest(strings.Repeat("a1", 32), "acc", "OBCY", "bez kodu", "10,00")
+	if due, _ := f.s.DueMail(f.ctx, 10); len(due) != 0 {
+		t.Fatalf("no alert expected without pending payments, got %d", len(due))
+	}
+	f.contribution(f.class.ID, "Wycieczka", 5000, f.kid)
+	if _, err := f.s.CreateFastPayment(f.ctx, f.parent, f.class.ID, nil); err != nil {
+		t.Fatal(err)
+	}
+	res := f.ingest(strings.Repeat("a2", 32), "acc", "OBCY", "inny przelew", "77,00")
+	if res.Outcome != OutcomeUnmatched {
+		t.Fatal(res.Outcome)
+	}
+	due, _ := f.s.DueMail(f.ctx, 10)
+	if len(due) != 1 || due[0].ToEmail != "teresa@example.com" || !strings.Contains(due[0].Subject, "dopasowania") {
+		t.Fatalf("admin alert: %+v", due)
+	}
+	f.ingest(strings.Repeat("a2", 32), "acc", "OBCY", "inny przelew", "77,00") // redelivery
+	f.s.RematchRecent(f.ctx)
+	if again, _ := f.s.DueMail(f.ctx, 10); len(again) != 1 {
+		t.Fatalf("alert must not repeat, got %d", len(again))
+	}
+}
