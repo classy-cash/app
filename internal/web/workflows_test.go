@@ -218,7 +218,7 @@ func TestClassCouncilIsReadOnlyOverHTTP(t *testing.T) {
 	if code, _, _ := tr.post("/treasurer/members", url.Values{"email": {"trzeci@example.com"}, "name": {"Trzeci"}, "role": {"president"}}); code != 303 {
 		t.Fatal(code)
 	}
-	if _, body, _ := tr.get("/treasurer/members"); !strings.Contains(body, "Przewodniczący")  {
+	if _, body, _ := tr.get("/treasurer/members"); !strings.Contains(body, "Przewodniczący") {
 		t.Fatal("members page")
 	}
 	if u, err := h.st.UserByEmail(ctx, "trzeci@example.com"); err == nil {
