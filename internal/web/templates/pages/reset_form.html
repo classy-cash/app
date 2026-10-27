@@ -4,7 +4,7 @@
 {{if .Data.Error}}<div class="alert alert-error" role="alert"><span class="alert-icon" aria-hidden="true">!</span><span>{{.Data.Error}}</span></div>{{end}}
 <form method="post" action="/reset-password/reset/{{.Data.Token}}" class="stack">
   {{template "csrf" .CSRF}}
-  <div class="field"><label class="label" for="password">Nowe hasło</label><input class="input" id="password" name="password" type="password" autocomplete="new-password" minlength="8" required autofocus></div>
+  <div class="field"><label class="label" for="password">Nowe hasło</label><input class="input" id="password" name="password" type="password" autocomplete="new-password" minlength="8" required autofocus><p class="hint">Co najmniej 8 znaków.</p></div>
   <div class="field"><label class="label" for="password_confirm">Potwierdź hasło</label><input class="input" id="password_confirm" name="password_confirm" type="password" autocomplete="new-password" minlength="8" required></div>
   <button class="btn btn-primary btn-block" type="submit">Zresetuj hasło</button>
 </form>

@@ -17,6 +17,6 @@
 <form method="post" action="/admin/classes" class="stack">{{template "csrf" .CSRF}}
   <div class="grid-3"><div class="field"><label class="label" for="name">Nazwa klasy</label><input class="input" id="name" name="name" required></div>
   <div class="field"><label class="label" for="tn">Skarbnik — imię i nazwisko</label><input class="input" id="tn" name="treasurer_name"></div>
-  <div class="field"><label class="label" for="te">Skarbnik — e-mail</label><input class="input" id="te" name="treasurer_email" type="email"></div></div>
+  <div class="field"><label class="label" for="te">Skarbnik — e-mail</label><input class="input" id="te" name="treasurer_email" type="email" autocapitalize="none" spellcheck="false"></div></div>
   <div class="actions"><button class="btn btn-primary" type="submit">Utwórz klasę</button></div></form></section>
 {{end}}

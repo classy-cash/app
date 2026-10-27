@@ -7,13 +7,13 @@
     <div class="field"><label class="label" for="app_name">Nazwa aplikacji</label><input class="input" id="app_name" name="app_name" value="{{index .Data.Form "app_name"}}" placeholder="Classy Cash" required>{{template "fielderr" (index .Data.Errors "app_name")}}<p class="small muted">Wyświetlana w nagłówkach i wiadomościach e-mail.</p></div>
     <div class="field"><label class="label" for="class_name">Nazwa klasy</label><input class="input" id="class_name" name="class_name" value="{{index .Data.Form "class_name"}}" required>{{template "fielderr" (index .Data.Errors "class_name")}}</div>
     <div class="field"><label class="label" for="school_name">Szkoła</label><input class="input" id="school_name" name="school_name" value="{{index .Data.Form "school_name"}}" placeholder="Szkoła Podstawowa nr 1"></div>
-    <div class="field"><label class="label" for="email_from">Adres do odpowiedzi (Reply-To)</label><input class="input" id="email_from" name="email_from" type="email" value="{{index .Data.Form "email_from"}}" placeholder="skarbnik@example.com" {{if .Demo}}disabled{{end}}>{{template "fielderr" (index .Data.Errors "email_from")}}<p class="small muted">Rodzice odpowiedzą na ten adres. Wiadomości wysyła bezpieczna brama pocztowa — nie musisz konfigurować poczty.</p></div>
+    <div class="field"><label class="label" for="email_from">Adres do odpowiedzi (Reply-To)</label><input class="input" id="email_from" name="email_from" type="email" autocapitalize="none" spellcheck="false" value="{{index .Data.Form "email_from"}}" placeholder="skarbnik@example.com" {{if .Demo}}disabled{{end}}>{{template "fielderr" (index .Data.Errors "email_from")}}<p class="small muted">Rodzice odpowiedzą na ten adres. Wiadomości wysyła bezpieczna brama pocztowa — nie musisz konfigurować poczty.</p></div>
     </div>
   </section>
   <section class="card" aria-labelledby="p-h"><h2 id="p-h" class="h3">Odbiorca wpłat</h2>
     <p class="muted small">Rodzice płacą bezpośrednio Tobie. Aplikacja nie przelewa pieniędzy — tylko pokazuje te dane i zapisuje wpłaty.</p>
     <div class="grid-2">
-    <div class="field"><label class="label" for="blik_phone">Telefon do BLIK</label><input class="input" id="blik_phone" name="blik_phone" type="tel" value="{{index .Data.Form "blik_phone"}}" placeholder="+48 123 456 789"></div>
+    <div class="field"><label class="label" for="blik_phone">Telefon do BLIK</label><input class="input" id="blik_phone" name="blik_phone" type="tel" inputmode="tel" autocomplete="tel" value="{{index .Data.Form "blik_phone"}}" placeholder="+48 123 456 789"></div>
     <div class="field"><label class="label" for="transfer_account">Numer konta (przelew)</label><input class="input" id="transfer_account" name="transfer_account" value="{{index .Data.Form "transfer_account"}}" placeholder="PL 12 3456 7890 1234 5678 9012 3456"></div>
     </div>
   </section>
@@ -43,7 +43,7 @@
   <form method="post" action="/treasurer/settings/bank-tests" class="inline-form amount-form">
     {{template "csrf" .CSRF}}
     <label class="visually-hidden" for="bt-amount">Kwota testowego przelewu (PLN)</label>
-    <input class="input input-amount" id="bt-amount" name="amount_pln" inputmode="decimal" value="1,00" required>
+    <input class="input input-amount" id="bt-amount" name="amount_pln" inputmode="decimal" autocomplete="off" pattern="[0-9 ]*[0-9]([.,][0-9]{1,2})?" title="Podaj kwotę w złotych, np. 50,00" value="1,00" required>
     <button class="btn btn-outline" type="submit">Utwórz test</button>
   </form>
   {{end}}

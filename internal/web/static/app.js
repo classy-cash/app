@@ -33,6 +33,68 @@
     if (t && !window.confirm(t.getAttribute("data-confirm"))) e.preventDefault();
   });
 
+  // forms: Polish inline validation, show/hide password, and a guard against double submits
+  function message(el) {
+    var v = el.validity;
+    if (v.customError) return el.validationMessage;
+    if (v.valueMissing) return el.type === "checkbox" ? "Zaznacz to pole, aby kontynuować." : "To pole jest wymagane.";
+    if (v.typeMismatch) return el.type === "email" ? "Podaj poprawny adres e-mail, np. imie@domena.pl." : "Wpisz poprawną wartość.";
+    if (v.tooShort) return "Minimum " + el.minLength + " znaków (wpisano " + el.value.length + ").";
+    if (v.patternMismatch) return el.title || "Nieprawidłowy format.";
+    if (v.rangeUnderflow || v.rangeOverflow) return "Wartość jest poza dozwolonym zakresem.";
+    return el.validationMessage;
+  }
+  function errorBox(el, make) {
+    var f = el.closest(".field") || el.parentNode, box = $(".field-error", f);
+    if (!box && make) { box = document.createElement("p"); box.className = "field-error"; box.setAttribute("role", "alert"); f.appendChild(box); }
+    if (box && !box.id) box.id = (el.id || el.name || "f") + "-err";
+    return box;
+  }
+  function check(el) {
+    if (el.disabled || !el.willValidate || el.closest("[hidden]")) return true;
+    var other = el.name === "password_confirm" ? $('[name="password"]', el.form) : null;
+    if (el.name === "password_confirm") el.setCustomValidity(other && el.value && other.value !== el.value ? "Hasła nie są takie same." : "");
+    var ok = el.checkValidity(), box = errorBox(el, !ok);
+    if (ok) { el.removeAttribute("aria-invalid"); if (box) { box.textContent = ""; box.hidden = true; } el.removeAttribute("aria-describedby"); return true; }
+    el.setAttribute("aria-invalid", "true"); box.hidden = false; box.textContent = message(el); el.setAttribute("aria-describedby", box.id);
+    return false;
+  }
+  function controls(f) { return $$("input:not([type=hidden]):not([type=submit]):not([type=button]), select, textarea", f); }
+  $$("form").forEach(function (f) {
+    f.noValidate = true; // our messages replace the browser bubbles
+    controls(f).forEach(function (el) {
+      el.addEventListener("blur", function () { if (el.value !== "" || el.dataset.touched) check(el); });
+      el.addEventListener("input", function () { el.dataset.touched = "1"; if (el.getAttribute("aria-invalid") === "true" || el.name === "password" || el.name === "password_confirm") check(el); });
+      el.addEventListener("change", function () { check(el); });
+    });
+  });
+  $$("input[type=password]").forEach(function (inp) {
+    var wrap = document.createElement("div"), b = document.createElement("button");
+    wrap.className = "pw"; inp.parentNode.insertBefore(wrap, inp); wrap.appendChild(inp);
+    b.type = "button"; b.className = "pw-toggle"; b.textContent = "Pokaż"; b.setAttribute("aria-label", "Pokaż hasło"); b.setAttribute("aria-pressed", "false");
+    b.addEventListener("click", function () {
+      var show = inp.type === "password"; inp.type = show ? "text" : "password";
+      b.textContent = show ? "Ukryj" : "Pokaż"; b.setAttribute("aria-label", show ? "Ukryj hasło" : "Pokaż hasło"); b.setAttribute("aria-pressed", String(show));
+    });
+    wrap.appendChild(b);
+  });
+  document.addEventListener("submit", function (e) {
+    var f = e.target; if (!f || f.tagName !== "FORM" || e.defaultPrevented) return;
+    var bad = controls(f).filter(function (el) { return !check(el); });
+    if (bad.length) { e.preventDefault(); bad[0].focus(); return; }
+    if ((f.method || "").toLowerCase() === "get" || f.target === "_blank" || f.hasAttribute("data-keep-enabled")) return;
+    var btns = $$("button[type=submit], button:not([type]), input[type=submit]", f);
+    setTimeout(function () {
+      btns.forEach(function (b) { b.disabled = true; });
+      if (e.submitter && e.submitter.tagName === "BUTTON") e.submitter.setAttribute("aria-busy", "true");
+      setTimeout(unlock, 15000);
+    }, 0);
+    function unlock() { btns.forEach(function (b) { b.disabled = false; b.removeAttribute("aria-busy"); }); }
+    window.addEventListener("pageshow", unlock, { once: true });
+  });
+  var firstBad = $(".field-error:not([hidden])");
+  if (firstBad && !$("[data-wizard]")) { var fi = $("input, select, textarea", firstBad.closest(".field") || firstBad.parentNode); if (fi) { fi.setAttribute("aria-invalid", "true"); fi.focus(); } }
+
   // copy buttons
   $$("[data-copy-from]").forEach(function (b) {
     b.addEventListener("click", function () {
@@ -58,8 +120,8 @@
     var steps = $$("[data-step]", f), dots = $$(".step-dot", f), i = 0;
     function show(n) { i = n; steps.forEach(function (s, k) { s.hidden = k !== n; }); dots.forEach(function (d, k) { d.classList.toggle("active", k === n); }); var first = $("input", steps[n]); if (first) first.focus(); }
     $$("[data-next]", f).forEach(function (b) { b.addEventListener("click", function () {
-      var bad = $$("input[required]", steps[i]).filter(function (x) { return !x.checkValidity(); });
-      if (bad.length) { bad[0].reportValidity(); return; } show(i + 1); }); });
+      var bad = $$("input, select, textarea", steps[i]).filter(function (x) { return !check(x); });
+      if (bad.length) { bad[0].focus(); return; } show(i + 1); }); });
     $$("[data-prev]", f).forEach(function (b) { b.addEventListener("click", function () { show(i - 1); }); });
     var firstErr = steps.findIndex ? steps.findIndex(function (s) { return $(".field-error", s); }) : -1;
     show(firstErr > 0 ? firstErr : 0);

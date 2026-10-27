@@ -20,7 +20,7 @@
       </ul>
       {{if $.IsManager}}<form method="post" action="/treasurer/students/{{.ID}}/parents" class="parent-add">
         {{template "csrf" $.CSRF}}
-        <label class="visually-hidden" for="pe-{{.ID}}">E-mail rodzica</label><input class="input" id="pe-{{.ID}}" name="email" type="email" placeholder="e-mail rodzica" list="members" required>
+        <label class="visually-hidden" for="pe-{{.ID}}">E-mail rodzica</label><input class="input" id="pe-{{.ID}}" name="email" type="email" autocapitalize="none" spellcheck="false" placeholder="e-mail rodzica" list="members" required>
         <label class="visually-hidden" for="pn-{{.ID}}">Imię i nazwisko rodzica</label><input class="input" id="pn-{{.ID}}" name="name" placeholder="imię i nazwisko (dla nowego konta)">
         <button class="btn btn-outline btn-sm" type="submit">Dodaj rodzica</button>
       </form>{{end}}

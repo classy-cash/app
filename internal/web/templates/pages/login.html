@@ -1,27 +1,28 @@
 {{define "content"}}
-<p class="eyebrow">Witaj w klasie</p>
 <h1 class="serif">Zaloguj się</h1>
 <p class="muted">Dostęp do Twojego portfela klasowego.</p>
+<nav class="tabs" aria-label="Sposób logowania">
+  <a class="tab{{if not .Data.Password}} active{{end}}" href="/login"{{if not .Data.Password}} aria-current="page"{{end}}>Link e-mail</a>
+  <a class="tab{{if .Data.Password}} active{{end}}" href="/login?mode=password"{{if .Data.Password}} aria-current="page"{{end}}>Hasło</a>
+</nav>
 {{if .Data.Error}}<div class="alert alert-error" role="alert"><span class="alert-icon" aria-hidden="true">!</span><span>{{.Data.Error}}</span></div>{{end}}
 {{if .Data.Password}}
-<form method="post" action="/login" class="stack" novalidate>
+<form method="post" action="/login" class="stack">
   {{template "csrf" .CSRF}}
   <div class="field"><label class="label" for="email">Adres e-mail</label>
-  <input class="input" id="email" name="email" type="email" autocomplete="username" placeholder="twoj@email.com" value="{{.Data.Email}}" required autofocus></div>
-  <div class="field"><div class="label-row"><label class="label" for="password">Hasło</label><a class="small" href="/reset-password">Nie pamiętasz hasła?</a></div>
+  <input class="input" id="email" name="email" type="email" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="twoj@email.com" value="{{.Data.Email}}" required autofocus></div>
+  <div class="field"><div class="label-row"><label class="label" for="password">Hasło</label><a class="small link" href="/reset-password">Nie pamiętasz hasła?</a></div>
   <input class="input" id="password" name="password" type="password" autocomplete="current-password" required></div>
   <button class="btn btn-primary btn-block" type="submit">Zaloguj się</button>
 </form>
-<p class="center"><a class="link" href="/login">Zaloguj się linkiem e-mail</a></p>
 {{else}}
-<form method="post" action="/login/link" class="stack" novalidate>
+<form method="post" action="/login/link" class="stack">
   {{template "csrf" .CSRF}}
   <div class="field"><label class="label" for="email">Adres e-mail</label>
-  <input class="input" id="email" name="email" type="email" autocomplete="username" placeholder="twoj@email.com" value="{{.Data.Email}}" required autofocus></div>
+  <input class="input" id="email" name="email" type="email" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="twoj@email.com" value="{{.Data.Email}}" required autofocus></div>
   <button class="btn btn-primary btn-block" type="submit">Wyślij link logowania</button>
   <p class="small muted">Wyślemy jednorazowy link, który zalogowuje bez hasła.</p>
 </form>
-<p class="center"><a class="link" href="/login?mode=password">Zaloguj się hasłem</a></p>
 {{end}}
 {{if .Data.Demo}}
 <div class="demo-login">

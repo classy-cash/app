@@ -670,3 +670,31 @@ INSERT INTO settings (key,value) VALUES ('demo_accounts','[{"label":"Skarbnik","
 		}
 	}
 }
+
+// The login page switches between e-mail link and password with visible tabs, and
+// the shared script that powers inline validation and the double-submit guard is served.
+func TestLoginTabsAndFormHelpers(t *testing.T) {
+	h := newHarness(t, nil)
+	tr, _ := h.onboarded()
+	_, manual, _ := tr.get("/treasurer/manual-transactions")
+	tr.post("/logout", url.Values{})
+	c := h.client()
+	_, link, _ := c.get("/login")
+	_, pass, _ := c.get("/login?mode=password")
+	if !strings.Contains(link, `href="/login" aria-current="page">Link e-mail`) || strings.Contains(link, `name="password"`) {
+		t.Error("link mode must be the default tab without a password field")
+	}
+	if !strings.Contains(pass, `href="/login?mode=password" aria-current="page">Hasło`) || !strings.Contains(pass, `name="password"`) {
+		t.Error("password mode must show the password tab and field")
+	}
+	if strings.Contains(link+pass, "novalidate") {
+		t.Error("login forms must rely on the shared inline validation, not opt out of it")
+	}
+	if !strings.Contains(manual, `pattern="[0-9 ]*[0-9]([.,][0-9]{1,2})?"`) {
+		t.Error("amount fields must carry an amount pattern for client-side validation")
+	}
+	code, js, _ := c.get("/assets/app/app.js")
+	if code != 200 || !strings.Contains(js, "pw-toggle") || !strings.Contains(js, "aria-busy") {
+		t.Error("app.js must ship the password toggle and the double-submit guard")
+	}
+}

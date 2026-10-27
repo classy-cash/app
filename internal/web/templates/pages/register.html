@@ -9,7 +9,7 @@
   {{template "csrf" .CSRF}}
   <div class="field"><label class="label" for="first_name">Imię</label><input class="input" id="first_name" name="first_name" autocomplete="given-name" value="{{index .Data.Form "first_name"}}" required>{{template "fielderr" (index .Data.Errors "first_name")}}</div>
   <div class="field"><label class="label" for="last_name">Nazwisko</label><input class="input" id="last_name" name="last_name" autocomplete="family-name" value="{{index .Data.Form "last_name"}}" required>{{template "fielderr" (index .Data.Errors "last_name")}}</div>
-  <div class="field"><label class="label" for="email">Adres e-mail</label><input class="input" id="email" name="email" type="email" autocomplete="email" value="{{index .Data.Form "email"}}" required>{{template "fielderr" (index .Data.Errors "email")}}</div>
+  <div class="field"><label class="label" for="email">Adres e-mail</label><input class="input" id="email" name="email" type="email" autocapitalize="none" spellcheck="false" autocomplete="email" value="{{index .Data.Form "email"}}" required>{{template "fielderr" (index .Data.Errors "email")}}</div>
   <button class="btn btn-primary btn-block" type="submit">Zarejestruj się</button>
 </form>
 <p class="center small"><a class="link" href="/login">Mam już konto</a></p>

@@ -19,7 +19,7 @@
   <form method="post" action="/treasurer/members" class="stack">{{template "csrf" .CSRF}}
     <div class="grid-3">
       <div class="field"><label class="label" for="inv-name">Imię i nazwisko</label><input class="input" id="inv-name" name="name"></div>
-      <div class="field"><label class="label" for="inv-email">E-mail</label><input class="input" id="inv-email" name="email" type="email" required></div>
+      <div class="field"><label class="label" for="inv-email">E-mail</label><input class="input" id="inv-email" name="email" type="email" autocapitalize="none" spellcheck="false" required></div>
       <div class="field"><label class="label" for="inv-role">Rola</label><select class="input" id="inv-role" name="role"><option value="president">Przewodniczący</option><option value="vice_president">Wiceprzewodniczący</option><option value="parent">Rodzic</option></select></div>
     </div>
     <div class="actions"><button class="btn btn-primary" type="submit">Zapisz</button></div>

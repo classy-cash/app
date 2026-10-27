@@ -3,22 +3,26 @@
 <body class="auth-body">
 <a class="skip-link" href="#main">Przejdź do treści</a>
 {{template "demo_banner" .}}
+<header class="auth-top">
+  <div class="auth-top-in">
+    <a class="brand" href="/"><img src="/assets/brand/icon.svg" width="40" height="40" alt=""><span class="brand-name">Classy Cash</span></a>
+    <a class="auth-top-link" href="https://classy-cash.github.io/" rel="noopener" target="_blank">O projekcie <span aria-hidden="true">↗</span></a>
+  </div>
+</header>
 <div class="auth">
-  <aside class="auth-side" aria-hidden="false">
-    <a class="brand brand-light" href="/"><img src="/assets/brand/icon.svg" width="44" height="44" alt=""><span class="brand-name">Classy Cash</span></a>
-    <div class="auth-hero">
-      <h2 class="serif">Składki klasowe<br>pod kontrolą.</h2>
-      <p>Wpłaty, składki i rozliczenia klasy w jednym miejscu. Pieniądze trafiają bezpośrednio do skarbnika.</p>
-    </div>
-    <p class="auth-foot">Classy Cash · {{release}}</p>
-  </aside>
+  <section class="auth-hero" aria-label="O aplikacji">
+    <p class="auth-kicker"><span class="dot" aria-hidden="true"></span>Dla skarbników klasowych</p>
+    <h2 class="auth-title">Mniej liczenia.<br><em>Więcej spokoju.</em></h2>
+    <p class="auth-lead">Składki, wpłaty i wydatki klasy w jednym miejscu. Classy Cash pomaga mieć wszystko pod kontrolą — bez kolejnego arkusza.</p>
+    <p class="auth-point"><span aria-hidden="true">✦</span> Pieniądze trafiają bezpośrednio do skarbnika.</p>
+  </section>
   <main id="main" class="auth-main">
     <div class="auth-card">
-      <a class="brand brand-mobile" href="/"><img src="/assets/brand/icon.svg" width="40" height="40" alt=""><span class="brand-name">Classy Cash</span></a>
       {{template "flashes" .}}
       {{template "content" .}}
     </div>
     {{template "site_credit"}}
+    <p class="auth-version">{{release}}</p>
   </main>
 </div>
 {{template "scripts" .}}

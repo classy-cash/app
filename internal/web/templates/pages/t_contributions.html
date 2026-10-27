@@ -15,7 +15,7 @@
     {{template "csrf" .CSRF}}
     <div class="grid-3">
       <div class="field"><label class="label" for="title">Tytuł składki</label><input class="input" id="title" name="title" maxlength="128" placeholder="np. Wycieczka do zoo" required></div>
-      <div class="field"><label class="label" for="amount_pln">Kwota (PLN)</label><input class="input" id="amount_pln" name="amount_pln" inputmode="decimal" placeholder="50,00" required></div>
+      <div class="field"><label class="label" for="amount_pln">Kwota (PLN)</label><input class="input" id="amount_pln" name="amount_pln" inputmode="decimal" autocomplete="off" pattern="[0-9 ]*[0-9]([.,][0-9]{1,2})?" title="Podaj kwotę w złotych, np. 50,00" placeholder="50,00" required></div>
       <div class="field"><label class="label" for="due_at">Termin</label><input class="input" id="due_at" name="due_at" type="date"></div>
     </div>
     <fieldset class="field"><legend class="label">Przypisz do uczniów</legend>
@@ -52,7 +52,7 @@
           {{end}}
           {{if eq $sp.Status "pending"}}<form method="post" action="/treasurer/obligations/{{$sp.ID}}/amount" class="inline-form amount-form">{{template "csrf" $.CSRF}}
             <label class="visually-hidden" for="am{{$sp.ID}}">Kwota dla {{.Student.FullName}}</label>
-            <input class="input input-amount" id="am{{$sp.ID}}" name="amount_pln" inputmode="decimal" value="{{plain $sp.AmountMinor}}" required>
+            <input class="input input-amount" id="am{{$sp.ID}}" name="amount_pln" inputmode="decimal" autocomplete="off" pattern="[0-9 ]*[0-9]([.,][0-9]{1,2})?" title="Podaj kwotę w złotych, np. 50,00" value="{{plain $sp.AmountMinor}}" required>
             <button class="btn btn-outline btn-sm" type="submit">Zmień kwotę</button>
             {{if $sp.Overridden}}<span class="badge badge-info">Kwota indywidualna</span><button class="btn btn-ghost btn-sm" type="submit" name="reset" value="1" formnovalidate>Przywróć {{money $c.AmountMinor}}</button>{{end}}
           </form>{{else if eq $sp.Status "partial"}}<span class="small muted">Do zapłaty: {{money $sp.AmountMinor}}</span>{{end}}
@@ -67,7 +67,7 @@
     <form method="post" action="/treasurer/contributions/{{.ID}}/edit" class="stack">{{template "csrf" $.CSRF}}
       <div class="grid-3">
         <div class="field"><label class="label" for="et{{.ID}}">Tytuł</label><input class="input" id="et{{.ID}}" name="title" maxlength="128" value="{{.Title}}" required></div>
-        <div class="field"><label class="label" for="ea{{.ID}}">Kwota (PLN)</label><input class="input" id="ea{{.ID}}" name="amount_pln" inputmode="decimal" value="{{plain .AmountMinor}}" required></div>
+        <div class="field"><label class="label" for="ea{{.ID}}">Kwota (PLN)</label><input class="input" id="ea{{.ID}}" name="amount_pln" inputmode="decimal" autocomplete="off" pattern="[0-9 ]*[0-9]([.,][0-9]{1,2})?" title="Podaj kwotę w złotych, np. 50,00" value="{{plain .AmountMinor}}" required></div>
         <div class="field"><label class="label" for="ed{{.ID}}">Termin</label><input class="input" id="ed{{.ID}}" name="due_at" type="date" value="{{input_date .DueAt}}"></div>
       </div>
       <p class="small muted">Zmiana kwoty dotyczy tylko nieopłaconych obowiązków; opłacone zostają bez zmian.</p>

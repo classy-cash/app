@@ -5,7 +5,7 @@
   <h2 id="inc-h" class="h3">Wpłata (gotówka)</h2>
   <form method="post" action="/treasurer/manual-transactions" class="stack" data-preview="income">
     {{template "csrf" .CSRF}}<input type="hidden" name="transaction_type" value="income">
-    <div class="field"><label class="label" for="inc-amount">Kwota (PLN)</label><input class="input" id="inc-amount" name="amount_pln" inputmode="decimal" placeholder="50,00" required></div>
+    <div class="field"><label class="label" for="inc-amount">Kwota (PLN)</label><input class="input" id="inc-amount" name="amount_pln" inputmode="decimal" autocomplete="off" pattern="[0-9 ]*[0-9]([.,][0-9]{1,2})?" title="Podaj kwotę w złotych, np. 50,00" placeholder="50,00" required></div>
     <div class="field"><label class="label" for="inc-sp">Przypisz do ucznia / składki</label>
     <select class="input" id="inc-sp" name="student_payment_id"><option value="">Brak (wpłata ogólna)</option>{{range .Data.Open}}<option value="{{.ID}}" data-amount="{{plain .AmountMinor}}">{{.StudentName}} ({{.Label}}) — {{money .AmountMinor}}</option>{{end}}</select></div>
     <p class="consequence" aria-live="polite" data-consequence>Wpłata trafi do kasy klasy jako przychód ogólny.</p>
@@ -16,7 +16,7 @@
   <h2 id="exp-h" class="h3">Koszty / wypłata</h2>
   <form method="post" action="/treasurer/manual-transactions" class="stack"{{if .Data.Receipts}} enctype="multipart/form-data"{{end}}>
     {{template "csrf" .CSRF}}<input type="hidden" name="transaction_type" value="expense">
-    <div class="field"><label class="label" for="exp-amount">Kwota wydana (PLN)</label><input class="input" id="exp-amount" name="amount_pln" inputmode="decimal" placeholder="25,00" required></div>
+    <div class="field"><label class="label" for="exp-amount">Kwota wydana (PLN)</label><input class="input" id="exp-amount" name="amount_pln" inputmode="decimal" autocomplete="off" pattern="[0-9 ]*[0-9]([.,][0-9]{1,2})?" title="Podaj kwotę w złotych, np. 50,00" placeholder="25,00" required></div>
     <div class="field"><label class="label" for="exp-desc">Opis / przeznaczenie</label><input class="input" id="exp-desc" name="expense_description" maxlength="255" placeholder="np. Kwiaty na Dzień Nauczyciela" required></div>
     {{if .Data.Receipts}}<div class="field"><label class="label" for="exp-file">Paragon lub faktura (opcjonalnie)</label><input class="input" id="exp-file" name="attachment" type="file" accept="application/pdf,image/jpeg,image/png,image/webp"><p class="small muted">PDF, JPG, PNG lub WebP, do 5 MB.</p></div>{{end}}
     <p class="consequence">Wydatek zmniejszy saldo kasy klasy.</p>
