@@ -665,3 +665,32 @@ func TestReportsReconcileWithTheLedger(t *testing.T) {
 		t.Fatal("another class's parents must not appear")
 	}
 }
+
+func TestFirstSignInNotifiesAdministratorsOnce(t *testing.T) {
+	f := newFixture(t)
+	admin, err := f.s.CreateUser(f.ctx, "admin@example.com", "Admin", "", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ { // the second confirmation must not mail again
+		if err := f.s.ConfirmUser(f.ctx, f.parent.ID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := f.s.ConfirmUser(f.ctx, admin.ID); err != nil { // an admin does not announce itself to itself
+		t.Fatal(err)
+	}
+	mails, _ := f.s.RecentMail(f.ctx, 50)
+	var n int
+	for _, m := range mails {
+		if m.ToEmail == "admin@example.com" && strings.Contains(m.Subject, "Nowy użytkownik zarejestrowany - anna@example.com") {
+			n++
+		}
+		if m.ToEmail == "admin@example.com" && strings.Contains(m.Subject, "admin@example.com") {
+			t.Fatal("admin must not be told about its own first sign-in")
+		}
+	}
+	if n != 1 {
+		t.Fatalf("want exactly one new-user notice for the administrator, got %d", n)
+	}
+}

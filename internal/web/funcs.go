@@ -1,8 +1,10 @@
 package web
 
 import (
+	"context"
 	"fmt"
 	"html/template"
+	"net"
 	"strings"
 	"time"
 
@@ -150,6 +152,36 @@ func webmail(email string) (name, url string) {
 	return "skrzynkę pocztową", ""
 }
 
+// webmailFromMX recognises custom domains hosted by the big providers (legacy WebmailUrlService looked at
+// MX records). Only called for domains webmail() did not know; the lookup is short and cached.
+func webmailFromMX(ctx context.Context, email string, lookup func(context.Context, string) ([]*net.MX, error)) (name, url string) {
+	i := strings.LastIndex(email, "@")
+	if i < 0 {
+		return "skrzynkę pocztową", ""
+	}
+	domain := strings.ToLower(email[i+1:])
+	ctx, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
+	defer cancel()
+	mxs, err := lookup(ctx, domain)
+	if err != nil {
+		return "skrzynkę pocztową", ""
+	}
+	var hosts []string
+	for _, m := range mxs {
+		hosts = append(hosts, strings.ToLower(m.Host))
+	}
+	all := strings.Join(hosts, " ")
+	switch {
+	case strings.Contains(all, "google.com") || strings.Contains(all, "googlemail.com"):
+		return "Gmail", "https://mail.google.com"
+	case strings.Contains(all, "outlook.com") || strings.Contains(all, "microsoft.com"):
+		return "Outlook", "https://outlook.office.com/mail"
+	case strings.Contains(all, "zoho"):
+		return "Zoho Mail", "https://mail.zoho.com"
+	}
+	return "skrzynkę pocztową", ""
+}
+
 func itoa(n int64) string { return fmt.Sprintf("%d", n) }
 
 func constEq(a, b string) bool {
@@ -164,3 +196,30 @@ func constEq(a, b string) bool {
 }
 
 func moneyFmt(minor int64) string { return money.Format(minor) }
+
+// webmailMX caches MX-based provider detection per domain so repeated link requests do not hit DNS.
+func (s *Server) webmailMX(ctx context.Context, email string) (string, string) {
+	domain := email[strings.LastIndex(email, "@")+1:]
+	s.mxMu.Lock()
+	if c, ok := s.mxCache[domain]; ok && time.Since(c.at) < time.Hour {
+		s.mxMu.Unlock()
+		return c.name, c.url
+	}
+	s.mxMu.Unlock()
+	name, url := webmailFromMX(ctx, email, net.DefaultResolver.LookupMX)
+	s.mxMu.Lock()
+	if len(s.mxCache) > 256 {
+		s.mxCache = nil
+	}
+	if s.mxCache == nil {
+		s.mxCache = map[string]mxEntry{}
+	}
+	s.mxCache[domain] = mxEntry{name, url, time.Now()}
+	s.mxMu.Unlock()
+	return name, url
+}
+
+type mxEntry struct {
+	name, url string
+	at        time.Time
+}

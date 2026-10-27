@@ -98,6 +98,9 @@ func (s *Server) handleLoginPassword(w http.ResponseWriter, r *http.Request) {
 		s.renderLogin(w, r, true, email, "Nieprawidłowy adres e-mail lub hasło.")
 		return
 	}
+	if u.ConfirmedAt == nil {
+		_ = s.Store.ConfirmUser(r.Context(), u.ID)
+	}
 	s.startSession(w, r, u)
 }
 
@@ -141,6 +144,9 @@ func (s *Server) handleLoginLinkRequest(w http.ResponseWriter, r *http.Request) 
 
 func (s *Server) renderLinkSent(w http.ResponseWriter, r *http.Request, email string) {
 	name, url := webmail(email)
+	if url == "" && s.Cfg.Env == "prod" && !s.Cfg.Demo {
+		name, url = s.webmailMX(r.Context(), email)
+	}
 	p := s.page(r, "Sprawdź skrzynkę", "", map[string]any{"Email": email, "WebmailName": name, "WebmailURL": url, "Capture": s.Sender != nil && s.Sender.Captures()})
 	p.Layout = "layout_auth"
 	s.render(w, r, "link_sent", p, http.StatusOK)

@@ -47,6 +47,9 @@ type Server struct {
 	Sender     mail.Sender
 	Migrations fs.FS
 
+	mxMu    sync.Mutex
+	mxCache map[string]mxEntry
+
 	tpl     map[string]*template.Template
 	limiter *limiter
 	started time.Time

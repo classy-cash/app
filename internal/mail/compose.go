@@ -178,6 +178,14 @@ func TransferNotMatched(b Branding, d TransferNotMatchedData, loc *time.Location
 	return Rendered{subject, wrap(b, subject, body), text}
 }
 
+// NewUserAdmin tells the administrators that an account signed in for the first time.
+func NewUserAdmin(b Branding, name, email string, id int64) Rendered {
+	subject := "Nowy użytkownik zarejestrowany - " + email
+	body := fmt.Sprintf(`<p>Dzień dobry,</p><p>Nowe konto zalogowało się po raz pierwszy:</p><ul><li>ID użytkownika: #%d</li><li>Imię: %s</li><li>E-mail: %s</li></ul>`, id, esc(name), esc(email))
+	text := fmt.Sprintf("Nowe konto zalogowało się po raz pierwszy.\n\nID użytkownika: #%d\nImię: %s\nE-mail: %s\n", id, name, email)
+	return Rendered{subject, wrap(b, subject, body), text}
+}
+
 // PartialPayment tells a parent that their transfer differs from the amount due.
 func PartialPayment(b Branding, parentName, label string, dueMinor, paidMinor int64) Rendered {
 	subject := "Wpłata różni się od należnej kwoty"

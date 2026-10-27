@@ -3,10 +3,12 @@ package store
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/classy-cash/app/internal/auth"
+	"github.com/classy-cash/app/internal/mail"
 )
 
 // User is an account. Admins may act as treasurer in every class.
@@ -95,10 +97,33 @@ func (s *Store) UserByID(ctx context.Context, id int64) (User, error) {
 	return u, wrapNotFound(err)
 }
 
-// ConfirmUser marks the address as verified (first successful link login or password reset).
+// ConfirmUser marks the address as verified on the first successful sign-in and, only then, tells the
+// administrators about the new account (legacy NewUserHandler). It is a no-op for confirmed accounts.
 func (s *Store) ConfirmUser(ctx context.Context, id int64) error {
-	_, err := s.DB.ExecContext(ctx, `UPDATE users SET confirmed_at = COALESCE(confirmed_at, ?), updated_at = ? WHERE id = ?`, ts(s.Now()), ts(s.Now()), id)
-	return err
+	return s.InTx(ctx, func(tx *sql.Tx) error {
+		res, err := tx.ExecContext(ctx, `UPDATE users SET confirmed_at = ?, updated_at = ? WHERE id = ? AND confirmed_at IS NULL`, ts(s.Now()), ts(s.Now()), id)
+		if err != nil {
+			return err
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return nil
+		}
+		u, err := scanUser(tx.QueryRowContext(ctx, `SELECT `+userCols+` FROM users WHERE id = ?`, id))
+		if err != nil {
+			return err
+		}
+		admins, err := queryUsers(ctx, tx, `SELECT `+userCols+` FROM users WHERE is_admin = 1 AND id <> ?`, id)
+		if err != nil {
+			return err
+		}
+		r := mail.NewUserAdmin(s.brandingTx(ctx, tx), u.Name, u.Email, u.ID)
+		for _, a := range admins {
+			if err := enqueue(ctx, tx, s.Now(), mail.Message{Key: fmt.Sprintf("newuser-%d-%d", u.ID, a.ID), ToEmail: a.Email, ToName: a.Name, Subject: r.Subject, HTML: r.HTML, Text: r.Text}); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // UpdateProfile edits name and phone.

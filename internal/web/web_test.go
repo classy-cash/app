@@ -3,8 +3,10 @@ package web
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -596,5 +598,26 @@ INSERT INTO settings (key,value) VALUES ('demo_accounts','[{"label":"Skarbnik","
 	}
 	if code, body, _ := h.client().get("/ready"); code != 200 || !strings.Contains(body, `"mode":"demo"`) || !strings.Contains(body, `"bank_webhook":"disabled"`) {
 		t.Fatalf("ready should report demo: %s", body)
+	}
+}
+
+func TestWebmailDetection(t *testing.T) {
+	if n, u := webmail("x@gmail.com"); n != "Gmail" || u == "" {
+		t.Fatalf("gmail: %q %q", n, u)
+	}
+	if _, u := webmail("x@szkola.example"); u != "" {
+		t.Fatal("unknown domain must not get a guessed link")
+	}
+	mx := func(host string) func(context.Context, string) ([]*net.MX, error) {
+		return func(context.Context, string) ([]*net.MX, error) { return []*net.MX{{Host: host, Pref: 1}}, nil }
+	}
+	for host, want := range map[string]string{"aspmx.l.google.com.": "Gmail", "x-mail.protection.outlook.com.": "Outlook", "mx.zoho.eu.": "Zoho Mail", "mail.example.org.": "skrzynkę pocztową"} {
+		if n, _ := webmailFromMX(context.Background(), "a@klasa.example", mx(host)); n != want {
+			t.Errorf("%s: got %q, want %q", host, n, want)
+		}
+	}
+	fail := func(context.Context, string) ([]*net.MX, error) { return nil, errors.New("nxdomain") }
+	if n, u := webmailFromMX(context.Background(), "a@klasa.example", fail); u != "" || n == "" {
+		t.Fatal("a failed lookup must degrade to the generic hint")
 	}
 }
