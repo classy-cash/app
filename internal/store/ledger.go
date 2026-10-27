@@ -145,14 +145,25 @@ func (s *Store) LedgerPage(ctx context.Context, classID int64, page, size int) (
 	if page < 1 {
 		page = 1
 	}
-	rows, err := s.DB.QueryContext(ctx, `SELECT l.kind, l.amount_minor, l.tx_date, l.balance_after_minor, l.payment_id, COALESCE(e.label,''),
-		EXISTS (SELECT 1 FROM transfers t WHERE t.payment_id = l.payment_id AND t.deleted_at IS NULL)
-		FROM ledger l LEFT JOIN expenses e ON e.id = l.expense_id WHERE l.class_id = ? ORDER BY l.tx_date DESC, l.id DESC LIMIT ? OFFSET ?`,
-		classID, size+1, (page-1)*size)
+	rows, err := s.ledgerRows(ctx, `WHERE l.class_id = ? ORDER BY l.tx_date DESC, l.id DESC LIMIT ? OFFSET ?`, classID, size+1, (page-1)*size)
 	if err != nil {
 		return nil, false, err
 	}
-	defer rows.Close()
+	more := len(rows) > size
+	if more {
+		rows = rows[:size]
+	}
+	return rows, more, nil
+}
+
+// ledgerRows loads ledger lines (tail is the WHERE/ORDER part) and describes each one.
+func (s *Store) ledgerRows(ctx context.Context, tail string, args ...any) ([]LedgerRow, error) {
+	rows, err := s.DB.QueryContext(ctx, `SELECT l.kind, l.amount_minor, l.tx_date, l.balance_after_minor, l.payment_id, COALESCE(e.label,''),
+		EXISTS (SELECT 1 FROM transfers t WHERE t.payment_id = l.payment_id AND t.deleted_at IS NULL)
+		FROM ledger l LEFT JOIN expenses e ON e.id = l.expense_id `+tail, args...)
+	if err != nil {
+		return nil, err
+	}
 	type raw struct {
 		row LedgerRow
 		pid sql.NullInt64
@@ -164,7 +175,8 @@ func (s *Store) LedgerPage(ctx context.Context, classID int64, page, size int) (
 		var auto bool
 		var label string
 		if err := rows.Scan(&r.row.Kind, &r.row.AmountMinor, &date, &r.row.BalanceAfter, &r.pid, &label, &auto); err != nil {
-			return nil, false, err
+			rows.Close()
+			return nil, err
 		}
 		r.row.Date = parseTime(date)
 		switch {
@@ -177,19 +189,13 @@ func (s *Store) LedgerPage(ctx context.Context, classID int64, page, size int) (
 		}
 		raws = append(raws, r)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, false, err
-	}
-	more := len(raws) > size
-	if more {
-		raws = raws[:size]
-	}
+	rows.Close()
 	out := make([]LedgerRow, 0, len(raws))
 	for _, r := range raws {
 		if r.pid.Valid {
 			sps, err := querySPs(ctx, s.DB, `WHERE sp.payment_id = ? ORDER BY sp.id`, r.pid.Int64)
 			if err != nil {
-				return nil, false, err
+				return nil, err
 			}
 			if len(sps) == 0 {
 				r.row.Description = "Wpłata ogólna"
@@ -212,7 +218,7 @@ func (s *Store) LedgerPage(ctx context.Context, classID int64, page, size int) (
 		}
 		out = append(out, r.row)
 	}
-	return out, more, nil
+	return out, nil
 }
 
 // LastLedgerBalance is the current cash balance of the class.

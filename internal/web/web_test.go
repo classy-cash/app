@@ -217,7 +217,8 @@ func TestEveryTreasurerPageRenders(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, p := range []string{"/", "/treasurer", "/treasurer/dashboard", "/treasurer/dashboard/cards", "/treasurer/ledger?page=1", "/treasurer/payments", "/treasurer/contributions",
-		"/treasurer/students", "/treasurer/manual-transactions", "/treasurer/settings", "/admin/mail", "/admin/classes", "/parent", "/profile", "/treasurer/users/search?q=ann"} {
+		"/treasurer/students", "/treasurer/manual-transactions", "/treasurer/settings", "/admin/mail", "/admin/classes", "/parent", "/profile", "/treasurer/users/search?q=ann", "/treasurer/reports", "/treasurer/members",
+		"/treasurer/reports/contributions", "/treasurer/reports/outstanding", "/treasurer/reports/cash?from=2026-09-01&to=2026-10-31", "/treasurer/reports/parents", "/treasurer/reports/transfers"} {
 		resp, err := c.c.Get(h.ts.URL + p)
 		if err != nil {
 			t.Fatal(err)

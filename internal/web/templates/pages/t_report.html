@@ -1,0 +1,13 @@
+{{define "content"}}
+<header class="page-head no-print"><div><h1 class="serif">{{.Data.Report.Title}}</h1><p class="muted">{{.Data.Report.Subtitle}}</p></div>
+  <div class="row-actions"><a class="btn btn-outline" href="/treasurer/reports">Wszystkie raporty</a><a class="btn btn-outline" href="{{.Data.CSVURL}}">Pobierz CSV</a><button class="btn btn-primary" type="button" data-print>Drukuj</button></div></header>
+<section class="card report" aria-label="{{.Data.Report.Title}}">
+  <div class="report-head"><p class="eyebrow">Classy Cash · {{.Data.Report.ClassName}}</p><h2 class="serif">{{.Data.Report.Title}}</h2>{{if .Data.Report.Subtitle}}<p>{{.Data.Report.Subtitle}}</p>{{end}}<p class="small muted">Wygenerowano {{datetime .Data.Generated}} przez {{.User.Name}} ({{.RoleLabel}})</p></div>
+  <div class="table-wrap"><table class="table">
+    <thead><tr>{{range .Data.Report.Columns}}<th scope="col" {{if .Num}}class="num"{{end}}>{{.Name}}</th>{{end}}</tr></thead>
+    <tbody>{{range .Data.Report.Rows}}<tr>{{range $i, $c := .}}<td {{if $c.IsMoney}}class="num"{{end}}>{{cell $c}}</td>{{end}}</tr>
+    {{else}}<tr><td colspan="{{len .Data.Report.Columns}}" class="empty">Brak danych dla wybranych kryteriów</td></tr>{{end}}</tbody>
+  </table></div>
+  {{if .Data.Report.Summary}}<dl class="dl report-summary">{{range .Data.Report.Summary}}<dt>{{.Label}}</dt><dd class="strong">{{cell .Value}}</dd>{{end}}</dl>{{end}}
+</section>
+{{end}}

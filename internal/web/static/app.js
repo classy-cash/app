@@ -42,6 +42,9 @@
     });
   });
 
+  // print buttons
+  $$("[data-print]").forEach(function (b) { b.addEventListener("click", function () { window.print(); }); });
+
   // select / deselect all students
   $$("[data-toggle-all]").forEach(function (b) {
     b.addEventListener("click", function () {

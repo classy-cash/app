@@ -565,3 +565,103 @@ func TestUnmatchedTransferAlertsAdminsOncePerTransfer(t *testing.T) {
 		t.Fatalf("alert must not repeat, got %d", len(again))
 	}
 }
+
+func TestClassCouncilSeatsAndReadOnlyAccess(t *testing.T) {
+	f := newFixture(t)
+	pres := f.user("przewodniczaca@example.com", "Ewa Przewodnicząca")
+	vice := f.user("wice@example.com", "Jan Wice")
+	third := f.user("trzeci@example.com", "Trzeci Rodzic")
+	f.must(f.s.SetMember(f.ctx, f.class.ID, pres.ID, RolePresident))
+	f.must(f.s.SetMember(f.ctx, f.class.ID, vice.ID, RoleVicePresident))
+	if err := f.s.SetMember(f.ctx, f.class.ID, third.ID, RolePresident); !errors.Is(err, ErrConflict) {
+		t.Fatalf("one chairperson per class: %v", err)
+	}
+	if err := f.s.SetMember(f.ctx, f.class.ID, third.ID, RoleVicePresident); !errors.Is(err, ErrConflict) {
+		t.Fatalf("one deputy per class: %v", err)
+	}
+	// Re-assigning the same seat to the same person is fine; moving to parent frees it.
+	f.must(f.s.SetMember(f.ctx, f.class.ID, pres.ID, RolePresident))
+	f.must(f.s.SetMember(f.ctx, f.class.ID, pres.ID, RoleParent))
+	f.must(f.s.SetMember(f.ctx, f.class.ID, third.ID, RolePresident))
+	for _, u := range []User{third, vice} {
+		if !f.s.CanView(f.ctx, u, f.class.ID) || f.s.CanManage(f.ctx, u, f.class.ID) {
+			t.Fatalf("council member %s must view but not manage", u.Email)
+		}
+	}
+	if f.s.CanView(f.ctx, pres, f.class.ID) || f.s.CanView(f.ctx, f.parent, f.class.ID) {
+		t.Fatal("ordinary parents have no panel access")
+	}
+	other, _ := f.s.CreateClass(f.ctx, "5B")
+	if f.s.CanView(f.ctx, vice, other.ID) {
+		t.Fatal("council access is per class")
+	}
+	if !f.s.CanView(f.ctx, f.treas, f.class.ID) || !f.s.CanManage(f.ctx, f.treas, other.ID) {
+		t.Fatal("treasurer/admin keep full access")
+	}
+}
+
+func TestReportsReconcileWithTheLedger(t *testing.T) {
+	f := newFixture(t)
+	second := f.user("ojciec@example.com", "Piotr Nowak")
+	kid2 := f.student(f.class.ID, "Olek", "Nowak", second)
+	sps := f.contribution(f.class.ID, "Wycieczka", 5000, f.kid, kid2)
+	f.must(f.s.MarkStudentPaymentPaid(f.ctx, f.class.ID, sps[0].ID, f.treas))
+	f.contribution(f.class.ID, "Obiad", 2000, f.kid)
+	f.now = f.now.Add(time.Hour)
+	_, err := f.s.ManualExpense(f.ctx, f.class.ID, "Kwiaty", 1500, f.now)
+	f.must(err)
+
+	rep, err := f.s.ReportContributions(f.ctx, f.class.ID, 0)
+	f.must(err)
+	if len(rep.Rows) != 3 || rep.Summary[2].Value.Minor != 12000 || rep.Summary[3].Value.Minor != 5000 || rep.Summary[4].Value.Minor != 7000 {
+		t.Fatalf("contributions summary: %+v", rep.Summary)
+	}
+	if _, err := f.s.ReportContributions(f.ctx, f.class.ID, 99999); !errors.Is(err, ErrNotFound) {
+		t.Fatal("unknown contribution must be not-found, never another class's data")
+	}
+
+	out, err := f.s.ReportOutstanding(f.ctx, f.class.ID)
+	f.must(err)
+	if out.Summary[2].Value.Minor != 7000 || len(out.Rows) != 1 || out.Summary[1].Value.Text != "2" {
+		t.Fatalf("outstanding: %+v", out.Summary)
+	}
+	for _, row := range out.Rows {
+		if row[0].Text == "" || row[1].Text == "" {
+			t.Fatalf("student and parents expected: %+v", row)
+		}
+	}
+
+	cash, err := f.s.ReportCash(f.ctx, f.class.ID, f.now.AddDate(0, 0, -1), f.now)
+	f.must(err)
+	if cash.Summary[0].Value.Minor != 0 || cash.Summary[1].Value.Minor != 5000 || cash.Summary[2].Value.Minor != 1500 || cash.Summary[3].Value.Minor != 3500 || len(cash.Rows) != 2 {
+		t.Fatalf("cash: %+v rows=%d", cash.Summary, len(cash.Rows))
+	}
+	if bal, _ := f.s.LastLedgerBalance(f.ctx, f.class.ID); bal != cash.Summary[3].Value.Minor {
+		t.Fatal("report closing balance must equal the ledger balance")
+	}
+	later, _ := f.s.ReportCash(f.ctx, f.class.ID, f.now.AddDate(0, 0, 1), f.now.AddDate(0, 0, 2))
+	if later.Summary[0].Value.Minor != 3500 || later.Summary[3].Value.Minor != 3500 || len(later.Rows) != 0 {
+		t.Fatalf("a later period opens with the previous closing balance: %+v", later.Summary)
+	}
+
+	par, err := f.s.ReportParents(f.ctx, f.class.ID)
+	f.must(err)
+	if len(par.Rows) != 2 || par.Summary[1].Value.Minor != 12000 || par.Summary[3].Value.Minor != 7000 {
+		t.Fatalf("parents: %+v", par.Summary)
+	}
+
+	f.ingest(strings.Repeat("e1", 32), "acc", "ANNA", "luźny przelew", "30,00")
+	tr, err := f.s.ReportTransfers(f.ctx, f.class.ID, f.now.AddDate(0, 0, -1), f.now)
+	f.must(err)
+	if len(tr.Rows) != 1 || tr.Summary[1].Value.Minor != 3000 || tr.Rows[0][4].Text != "Nieprzypisana" {
+		t.Fatalf("transfers: %+v", tr)
+	}
+	// Reports are class-scoped.
+	other, _ := f.s.CreateClass(f.ctx, "5B")
+	if r, _ := f.s.ReportContributions(f.ctx, other.ID, 0); len(r.Rows) != 0 {
+		t.Fatal("another class's report must be empty")
+	}
+	if r, _ := f.s.ReportParents(f.ctx, other.ID); len(r.Rows) != 0 {
+		t.Fatal("another class's parents must not appear")
+	}
+}

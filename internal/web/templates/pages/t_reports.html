@@ -1,0 +1,20 @@
+{{define "content"}}
+<header class="page-head"><div><h1 class="serif">Raporty</h1><p class="muted">Zestawienia do wydruku i pobrania (CSV, otwiera się w Excelu). Dostępne dla skarbnika i rady klasowej.</p></div></header>
+<div class="report-grid">
+{{range .Data.Kinds}}
+<section class="card" aria-labelledby="r-{{.Kind}}">
+  <h2 id="r-{{.Kind}}" class="h3">{{.Title}}</h2>
+  <p class="small muted">{{.Description}}</p>
+  <form method="get" action="/treasurer/reports/{{.Kind}}" class="stack">
+    {{if eq .Kind "contributions"}}<div class="field"><label class="label" for="c-{{.Kind}}">Składka</label>
+      <select class="input" id="c-{{.Kind}}" name="contribution"><option value="">Wszystkie składki</option>{{range $.Data.Contributions}}<option value="{{.ID}}">{{.Title}}</option>{{end}}</select></div>{{end}}
+    {{if or (eq .Kind "cash") (eq .Kind "transfers")}}<div class="grid-2">
+      <div class="field"><label class="label" for="f-{{.Kind}}">Od</label><input class="input" id="f-{{.Kind}}" name="from" type="date" value="{{$.Data.From}}"></div>
+      <div class="field"><label class="label" for="t-{{.Kind}}">Do</label><input class="input" id="t-{{.Kind}}" name="to" type="date" value="{{$.Data.To}}"></div></div>{{end}}
+    <div class="actions"><button class="btn btn-primary" type="submit">Pokaż raport</button>
+      <button class="btn btn-outline" type="submit" name="format" value="csv">Pobierz CSV</button></div>
+  </form>
+</section>
+{{end}}
+</div>
+{{end}}

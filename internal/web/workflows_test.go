@@ -196,3 +196,113 @@ func TestQuarantinedBankMailIsAdminOnly(t *testing.T) {
 		t.Fatalf("replay by non-admin: %d", code)
 	}
 }
+
+func TestClassCouncilIsReadOnlyOverHTTP(t *testing.T) {
+	h := newHarness(t, nil)
+	tr, cls := h.onboarded()
+	ctx := context.Background()
+	_, kid := h.parent("anna@example.com", "Anna Kowalska", cls, "Jan", "Kowalski")
+	if _, err := h.st.CreateContribution(ctx, cls.ID, "=cmd|' /C calc'!A0", 5000, nil, []int64{kid.ID}); err != nil {
+		t.Fatal(err)
+	}
+
+	// The treasurer appoints a chairperson and a deputy through the UI.
+	for _, f := range []url.Values{
+		{"email": {"ewa@example.com"}, "name": {"Ewa Przewodnicząca"}, "role": {"president"}},
+		{"email": {"jan@example.com"}, "name": {"Jan Wice"}, "role": {"vice_president"}},
+	} {
+		if code, _, _ := tr.post("/treasurer/members", f); code != 303 {
+			t.Fatal(code)
+		}
+	}
+	if code, _, _ := tr.post("/treasurer/members", url.Values{"email": {"trzeci@example.com"}, "name": {"Trzeci"}, "role": {"president"}}); code != 303 {
+		t.Fatal(code)
+	}
+	if _, body, _ := tr.get("/treasurer/members"); !strings.Contains(body, "Przewodniczący")  {
+		t.Fatal("members page")
+	}
+	if u, err := h.st.UserByEmail(ctx, "trzeci@example.com"); err == nil {
+		if role, _ := h.st.RoleIn(ctx, u, cls.ID); role == store.RolePresident {
+			t.Fatal("a second chairperson must be refused")
+		}
+	}
+	if code, _, _ := tr.post("/treasurer/members", url.Values{"email": {"teresa@example.com"}, "role": {"president"}}); code != 303 {
+		t.Fatal(code)
+	}
+	if role, _ := h.st.RoleIn(ctx, store.User{ID: 1}, cls.ID); role != store.RoleTreasurer {
+		t.Fatal("the treasurer's seat must not be overwritten through the council form")
+	}
+
+	ewa, _ := h.st.UserByEmail(ctx, "ewa@example.com")
+	hash, _ := auth.HashPassword("councilpass1")
+	if err := h.st.SetPassword(ctx, ewa.ID, hash); err != nil {
+		t.Fatal(err)
+	}
+	c := h.client()
+	c.login("ewa@example.com", "councilpass1")
+	for _, p := range []string{"/treasurer/dashboard", "/treasurer/payments", "/treasurer/contributions", "/treasurer/students", "/treasurer/reports", "/treasurer/members",
+		"/treasurer/reports/contributions", "/treasurer/reports/outstanding", "/treasurer/reports/cash", "/treasurer/reports/parents", "/treasurer/reports/transfers"} {
+		code, body, _ := c.get(p)
+		if code != 200 {
+			t.Errorf("council %s: %d", p, code)
+			continue
+		}
+		if p == "/treasurer/dashboard" && (!strings.Contains(body, "Tryb podglądu") || strings.Contains(body, "Nowa transakcja")) {
+			t.Error("council dashboard must show the read-only notice and no write buttons")
+		}
+		if p == "/treasurer/contributions" && (strings.Contains(body, "Uruchom składkę") || strings.Contains(body, "Oznacz jako opłacone")) {
+			t.Error("council must not see contribution controls")
+		}
+	}
+	for _, p := range []string{"/treasurer/manual-transactions", "/treasurer/settings", "/admin/mail", "/admin/classes"} {
+		if code, _, _ := c.get(p); code != 403 {
+			t.Errorf("council %s: %d, want 403", p, code)
+		}
+	}
+	spID := func() string {
+		all, _ := h.st.StudentPaymentsByClass(ctx, cls.ID)
+		return strconv.FormatInt(all[0].ID, 10)
+	}()
+	for p, f := range map[string]url.Values{
+		"/treasurer/contributions":                 {"title": {"X"}, "amount_pln": {"1"}},
+		"/treasurer/obligations/" + spID + "/paid": {},
+		"/treasurer/manual-transactions":           {"transaction_type": {"expense"}, "amount_pln": {"1"}, "expense_description": {"x"}},
+		"/treasurer/students":                      {"first_name": {"Aa"}, "last_name": {"Bb"}},
+		"/treasurer/members":                       {"email": {"x@example.com"}, "role": {"vice_president"}},
+		"/treasurer/settings":                      {"app_name": {"Hack"}, "class_name": {"x"}},
+	} {
+		if code, _, _ := c.post(p, f); code != 403 {
+			t.Errorf("council POST %s: %d, want 403", p, code)
+		}
+	}
+	if all, _ := h.st.StudentPaymentsByClass(ctx, cls.ID); all[0].Status == store.SPPaid {
+		t.Fatal("a council member must not be able to settle obligations")
+	}
+	// Landing page: own children's view with a link to the read-only panel.
+	if code, body, _ := c.get("/parent"); code != 200 || !strings.Contains(body, "Panel rady klasowej") {
+		t.Fatalf("council parent page: %d", code)
+	}
+	// An ordinary parent has none of this.
+	anna := h.client()
+	anna.login("anna@example.com", "parentpass1")
+	for _, p := range []string{"/treasurer/reports", "/treasurer/reports/cash", "/treasurer/members"} {
+		if code, _, _ := anna.get(p); code != 403 {
+			t.Errorf("parent %s: %d, want 403", p, code)
+		}
+	}
+
+	// CSV: BOM, semicolons, decimal comma, formula neutralised.
+	code, csvBody, hd := tr.get("/treasurer/reports/contributions?format=csv")
+	if code != 200 || !strings.HasPrefix(hd.Get("Content-Type"), "text/csv") || !strings.Contains(hd.Get("Content-Disposition"), "attachment") {
+		t.Fatalf("csv headers: %d %v", code, hd)
+	}
+	if !strings.HasPrefix(csvBody, "\xef\xbb\xbf") || !strings.Contains(csvBody, ";50,00;") || strings.Contains(csvBody, ";=cmd") || !strings.Contains(csvBody, "'=cmd") {
+		t.Fatalf("csv content/safety: %q", csvBody)
+	}
+	if code, _, _ := tr.get("/treasurer/reports/nonsense"); code != 404 {
+		t.Fatal("unknown report")
+	}
+	if _, html, _ := tr.get("/treasurer/reports/outstanding"); !strings.Contains(html, "Zaległości razem") {
+		t.Fatal("outstanding report page")
+	}
+}

@@ -507,6 +507,7 @@ func (s *Server) routes(mux *http.ServeMux) {
 	s.authRoutes(mux)
 	s.parentRoutes(mux)
 	s.treasurerRoutes(mux)
+	s.reportRoutes(mux)
 	s.adminRoutes(mux)
 
 	mux.HandleFunc("GET /{$}", s.needInstalled(s.needUser(s.handleHome)))
