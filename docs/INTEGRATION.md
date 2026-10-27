@@ -218,6 +218,12 @@ truth, pin the wrapper to an app version and re-check on upgrades):
 * Needed settings rows: `app_name`, `parent_registration_enabled` (`0`/`1`), `bank_class_id`, and
   `demo_accounts` = JSON array `[{"label":"Skarbnik","email":"…","role":"skarbnik"}, …]` (only these emails can
   quick-login). `generation` is managed by the loader — do not write it.
+* **Pending payments must be younger than 24 h at load time.** The app expires `pending` payments older than 24 h
+  (at start-up and every 5 minutes), so a seed with a "pending" payment created weeks ago shows as "Wygasła"
+  within minutes. Generate `created_at` relative to the load time (e.g. a few hours ago) on every reset.
+* **Every `contribution_students` row needs a `student_payments` row** (same contribution and student); a slot
+  without an obligation renders as "Anulowano" (cancelled). Paid obligations need `payment_id` and `paid_at`.
+* Failed and paid payments should carry `code = NULL` (the app clears codes when a payment fails or is paid).
 * After loading ledger-affecting data (paid payments, expenses) run `classycash ledger-rebuild`, or insert
   `ledger` rows yourself. The ledger is derived: one income per `paid` payment (valued at the sum of its
   matched transfers, else its amount, dated `paid_at`) and one outflow per expense.
@@ -226,6 +232,14 @@ truth, pin the wrapper to an app version and re-check on upgrades):
   paid`, matched/unmatched/review (`review_reason` set) transfers and `bank_events` rows
   (`parsed, unrecognized, duplicate_review`) to demonstrate each screen.
 * Attachments are not implemented in the Go app (the legacy field existed without UI); nothing to seed.
+
+`scripts/demo_acceptance.py` is a ready-made black-box check for any deployment (see its docstring); it needs only
+HTTP access and discovers the quick-login accounts from the login page.
+
+**Hosting note (Docker):** a container attached *only* to a network declared `internal: true` has no outbound
+route (good) but Docker also **does not publish its ports**, so `ports: ["127.0.0.1:PORT:8080"]` silently does
+nothing. Put a small proxy (nginx/socat) on both the internal network and a normal one, or block egress with
+host firewall rules instead.
 
 Verification the wrapper can do after a load: `GET /ready` → `200`, `mode=demo`; `GET /login` → quick-login
 buttons present; `generation` increased.
