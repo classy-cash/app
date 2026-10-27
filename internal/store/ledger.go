@@ -36,7 +36,7 @@ func recalcLedger(ctx context.Context, tx *sql.Tx, classID int64, now time.Time)
 		entries = append(entries, e)
 	}
 	rows.Close()
-	erows, err := tx.QueryContext(ctx, `SELECT id, spent_at, amount_minor FROM expenses WHERE class_id = ?`, classID)
+	erows, err := tx.QueryContext(ctx, `SELECT id, spent_at, amount_minor FROM expenses WHERE class_id = ? AND voided_at IS NULL`, classID)
 	if err != nil {
 		return err
 	}

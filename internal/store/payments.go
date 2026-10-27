@@ -47,12 +47,17 @@ type Payment struct {
 	UserName      string
 	UserEmail     string
 	ReceivedMinor int64
+	Source        string // online | manual (booked by the treasurer by hand)
+	Note          string // description kept for manual entries
 	Items         []StudentPayment
 }
 
 // Label summarises what the payment is for.
 func (p Payment) Label() string {
 	if len(p.Items) == 0 {
+		if p.Note != "" {
+			return p.Note
+		}
 		return "Wpłata ogólna"
 	}
 	seen := map[string]bool{}
@@ -139,6 +144,7 @@ type Contribution struct {
 	AmountMinor int64
 	DueAt       *time.Time
 	CreatedAt   time.Time
+	ClosedAt    *time.Time
 }
 
 // ContribItem is one student's slot in a contribution.
@@ -156,6 +162,8 @@ type ContributionView struct {
 	Overdue       bool
 	ProgressPct   int
 	ExpectedTotal int64
+	Closed        bool
+	Available     []Student // class students not (any more) on this collection
 }
 
 // CreateContribution creates a collection and one obligation per selected student of the class.
@@ -172,6 +180,7 @@ func (s *Store) CreateContribution(ctx context.Context, classID int64, title str
 			return err
 		}
 		cid, _ = res.LastInsertId()
+		c := Contribution{ID: cid, ClassID: classID, Title: title, AmountMinor: amountMinor, DueAt: dueAt}
 		seen := map[int64]bool{}
 		for _, sid := range studentIDs {
 			if seen[sid] {
@@ -182,11 +191,7 @@ func (s *Store) CreateContribution(ctx context.Context, classID int64, title str
 			if err := tx.QueryRowContext(ctx, `SELECT 1 FROM students WHERE id = ? AND class_id = ? AND deleted_at IS NULL`, sid, classID).Scan(&ok); err != nil {
 				continue // students of other classes are silently ignored (class isolation)
 			}
-			if _, err := tx.ExecContext(ctx, `INSERT INTO contribution_students (contribution_id, student_id) VALUES (?,?)`, cid, sid); err != nil {
-				return err
-			}
-			if _, err := tx.ExecContext(ctx, `INSERT INTO student_payments (class_id, student_id, contribution_id, label, amount_minor, status, created_at, due_at) VALUES (?,?,?,?,?,'pending',?,?)`,
-				classID, sid, cid, title, amountMinor, ts(now), nullTime(dueAt)); err != nil {
+			if _, err := enrolStudent(ctx, tx, now, c, sid); err != nil {
 				return err
 			}
 		}
@@ -197,8 +202,8 @@ func (s *Store) CreateContribution(ctx context.Context, classID int64, title str
 
 // ContributionViews lists the class collections with student progress.
 func (s *Store) ContributionViews(ctx context.Context, classID int64) ([]ContributionView, error) {
-	rows, err := s.DB.QueryContext(ctx, `SELECT id, class_id, title, amount_minor, due_at, created_at FROM contributions WHERE class_id = ?
-		ORDER BY due_at IS NULL, due_at ASC, created_at DESC, id DESC`, classID)
+	rows, err := s.DB.QueryContext(ctx, `SELECT id, class_id, title, amount_minor, due_at, created_at, closed_at FROM contributions WHERE class_id = ?
+		ORDER BY closed_at IS NOT NULL, due_at IS NULL, due_at ASC, created_at DESC, id DESC`, classID)
 	if err != nil {
 		return nil, err
 	}
@@ -206,15 +211,15 @@ func (s *Store) ContributionViews(ctx context.Context, classID int64) ([]Contrib
 	idx := map[int64]int{}
 	for rows.Next() {
 		var c Contribution
-		var due sql.NullString
+		var due, closed sql.NullString
 		var created string
-		if err := rows.Scan(&c.ID, &c.ClassID, &c.Title, &c.AmountMinor, &due, &created); err != nil {
+		if err := rows.Scan(&c.ID, &c.ClassID, &c.Title, &c.AmountMinor, &due, &created, &closed); err != nil {
 			rows.Close()
 			return nil, err
 		}
-		c.DueAt, c.CreatedAt = parseNullTime(due), parseTime(created)
+		c.DueAt, c.CreatedAt, c.ClosedAt = parseNullTime(due), parseTime(created), parseNullTime(closed)
 		idx[c.ID] = len(views)
-		views = append(views, ContributionView{Contribution: c, Overdue: c.DueAt != nil && c.DueAt.Before(s.Now())})
+		views = append(views, ContributionView{Contribution: c, Closed: c.ClosedAt != nil, Overdue: c.ClosedAt == nil && c.DueAt != nil && c.DueAt.Before(s.Now())})
 	}
 	rows.Close()
 	if len(views) == 0 {
@@ -263,11 +268,24 @@ func (s *Store) ContributionViews(ctx context.Context, classID int64) ([]Contrib
 		}
 		v.Items = append(v.Items, it)
 	}
+	roster, err := s.ListStudents(ctx, classID)
+	if err != nil {
+		return nil, err
+	}
 	for i := range views {
 		v := &views[i]
 		v.ExpectedTotal = v.AmountMinor * int64(len(v.Items))
 		if v.ExpectedTotal > 0 {
 			v.ProgressPct = int(v.TotalPaid * 100 / v.ExpectedTotal)
+		}
+		on := map[int64]bool{}
+		for _, it := range v.Items {
+			on[it.Student.ID] = true
+		}
+		for _, st := range roster {
+			if !on[st.ID] {
+				v.Available = append(v.Available, st)
+			}
 		}
 	}
 	return views, nil
@@ -416,8 +434,8 @@ func (s *Store) EnsureStudentPayment(ctx context.Context, classID, spID int64, a
 		if err != nil {
 			return err
 		}
-		if sp.PaymentID != nil || sp.Status == SPPaid {
-			return nil
+		if sp.Status == SPPaid || (sp.PaymentID != nil && (sp.PaymentStatus == PaymentPending || sp.PaymentStatus == PaymentExpired)) {
+			return nil // already settled, or an open payment with a code exists
 		}
 		owner, err := payerFor(ctx, tx, sp.StudentID, actor.ID)
 		if err != nil {
@@ -462,7 +480,10 @@ func (s *Store) MarkStudentPaymentPaid(ctx context.Context, classID, spID int64,
 				return err
 			}
 			if n == 1 {
-				return s.settlePayment(ctx, tx, *sp.PaymentID)
+				if err := s.settlePayment(ctx, tx, *sp.PaymentID); err != nil {
+					return err
+				}
+				return markManual(ctx, tx, *sp.PaymentID)
 			}
 		}
 		// Split this obligation off a shared payment (or create one) and settle only it.
@@ -479,7 +500,10 @@ func (s *Store) MarkStudentPaymentPaid(ctx context.Context, classID, spID int64,
 				return err
 			}
 		}
-		return s.settlePayment(ctx, tx, pid)
+		if err := s.settlePayment(ctx, tx, pid); err != nil {
+			return err
+		}
+		return markManual(ctx, tx, pid)
 	})
 }
 
@@ -493,19 +517,24 @@ func (s *Store) CancelStudentPayment(ctx context.Context, classID, spID int64) e
 		if sp.Status == SPPaid {
 			return errf(ErrConflict, "a paid obligation cannot be cancelled")
 		}
-		if sp.ContributionID != nil {
-			if _, err := tx.ExecContext(ctx, `DELETE FROM contribution_students WHERE contribution_id = ? AND student_id = ?`, *sp.ContributionID, sp.StudentID); err != nil {
-				return err
-			}
-		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM student_payments WHERE id = ?`, spID); err != nil {
+		return cancelObligation(ctx, tx, sp)
+	})
+}
+
+// cancelObligation removes an unpaid obligation, its contribution slot and re-derives the shared payment.
+func cancelObligation(ctx context.Context, tx *sql.Tx, sp StudentPayment) error {
+	if sp.ContributionID != nil {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM contribution_students WHERE contribution_id = ? AND student_id = ?`, *sp.ContributionID, sp.StudentID); err != nil {
 			return err
 		}
-		if sp.PaymentID != nil {
-			return reconcilePayment(ctx, tx, *sp.PaymentID)
-		}
-		return nil
-	})
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM student_payments WHERE id = ?`, sp.ID); err != nil {
+		return err
+	}
+	if sp.PaymentID != nil {
+		return reconcilePayment(ctx, tx, *sp.PaymentID)
+	}
+	return nil
 }
 
 // ---- payments ----
@@ -520,9 +549,9 @@ func (s *Store) loadPayment(ctx context.Context, x querier, classID, id int64) (
 	var created string
 	var paid, code sql.NullString
 	err := x.QueryRowContext(ctx, `SELECT p.id, p.class_id, p.user_id, p.amount_minor, p.status, p.code, p.created_at, p.paid_at, u.name, u.email,
-		COALESCE((SELECT SUM(amount_minor) FROM transfers WHERE payment_id = p.id AND deleted_at IS NULL),0)
+		COALESCE((SELECT SUM(amount_minor) FROM transfers WHERE payment_id = p.id AND deleted_at IS NULL),0), p.source, COALESCE(p.note,'')
 		FROM payments p JOIN users u ON u.id = p.user_id WHERE p.id = ? AND p.class_id = ?`, id, classID).
-		Scan(&p.ID, &p.ClassID, &p.UserID, &p.AmountMinor, &p.Status, &code, &created, &paid, &p.UserName, &p.UserEmail, &p.ReceivedMinor)
+		Scan(&p.ID, &p.ClassID, &p.UserID, &p.AmountMinor, &p.Status, &code, &created, &paid, &p.UserName, &p.UserEmail, &p.ReceivedMinor, &p.Source, &p.Note)
 	if err != nil {
 		return p, wrapNotFound(err)
 	}
@@ -648,7 +677,9 @@ func (s *Store) ManualIncome(ctx context.Context, classID int64, actor User, amo
 			if err != nil {
 				return err
 			}
-			_ = pid
+			if err := markManual(ctx, tx, pid); err != nil {
+				return err
+			}
 			return recalcLedger(ctx, tx, classID, now)
 		}
 		sp, err := s.studentPayment(ctx, tx, classID, spID)
@@ -683,9 +714,15 @@ func (s *Store) ManualIncome(ctx context.Context, classID int64, actor User, amo
 			if _, err := tx.ExecContext(ctx, `UPDATE student_payments SET status = 'partial' WHERE id = ?`, spID); err != nil {
 				return err
 			}
+			if err := markManual(ctx, tx, pid); err != nil {
+				return err
+			}
 			return recalcLedger(ctx, tx, classID, now)
 		}
-		return s.settlePayment(ctx, tx, pid)
+		if err := s.settlePayment(ctx, tx, pid); err != nil {
+			return err
+		}
+		return markManual(ctx, tx, pid)
 	})
 }
 
