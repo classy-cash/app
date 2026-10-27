@@ -14,10 +14,11 @@
 </section>
 <section class="card" aria-labelledby="exp-h">
   <h2 id="exp-h" class="h3">Koszty / wypłata</h2>
-  <form method="post" action="/treasurer/manual-transactions" class="stack">
+  <form method="post" action="/treasurer/manual-transactions" class="stack"{{if .Data.Receipts}} enctype="multipart/form-data"{{end}}>
     {{template "csrf" .CSRF}}<input type="hidden" name="transaction_type" value="expense">
     <div class="field"><label class="label" for="exp-amount">Kwota wydana (PLN)</label><input class="input" id="exp-amount" name="amount_pln" inputmode="decimal" placeholder="25,00" required></div>
     <div class="field"><label class="label" for="exp-desc">Opis / przeznaczenie</label><input class="input" id="exp-desc" name="expense_description" maxlength="255" placeholder="np. Kwiaty na Dzień Nauczyciela" required></div>
+    {{if .Data.Receipts}}<div class="field"><label class="label" for="exp-file">Paragon lub faktura (opcjonalnie)</label><input class="input" id="exp-file" name="attachment" type="file" accept="application/pdf,image/jpeg,image/png,image/webp"><p class="small muted">PDF, JPG, PNG lub WebP, do 5 MB.</p></div>{{end}}
     <p class="consequence">Wydatek zmniejszy saldo kasy klasy.</p>
     <button class="btn btn-primary" type="submit">Zaksięguj wydatek</button>
   </form>
@@ -29,7 +30,11 @@
   {{if .Data.Entries}}<ul class="list">
   {{range .Data.Entries}}<li class="list-item">
     <div><p class="strong{{if .Reversed}} struck{{end}}">{{.Description}}</p><p class="small muted">{{if eq .Kind "income"}}Wpłata{{else}}Wydatek{{end}} · {{datetime .At}}</p></div>
-    <div class="row-actions"><p class="strong{{if .Reversed}} struck{{end}}">{{if eq .Kind "income"}}+{{else}}−{{end}}{{money .AmountMinor}}</p>
+    <div class="row-actions">
+    {{if and (eq .Kind "expense") $.Data.Receipts}}{{if .HasReceipt}}<a class="btn btn-ghost btn-sm" href="/treasurer/expenses/{{.ID}}/attachment" target="_blank" rel="noopener">Paragon</a>
+      <form method="post" action="/treasurer/expenses/{{.ID}}/attachment/delete" class="inline" data-confirm="Usunąć paragon?">{{template "csrf" $.CSRF}}<button class="btn btn-ghost btn-sm danger" type="submit">Usuń paragon</button></form>
+      {{else}}<form method="post" action="/treasurer/expenses/{{.ID}}/attachment" enctype="multipart/form-data" class="inline-form">{{template "csrf" $.CSRF}}<label class="visually-hidden" for="rc{{.ID}}">Paragon dla {{.Description}}</label><input class="input" id="rc{{.ID}}" name="attachment" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" required><button class="btn btn-outline btn-sm" type="submit">Dodaj paragon</button></form>{{end}}{{end}}
+    <p class="strong{{if .Reversed}} struck{{end}}">{{if eq .Kind "income"}}+{{else}}−{{end}}{{money .AmountMinor}}</p>
     {{if .Reversed}}<span class="badge badge-muted">Cofnięty</span>
     {{else}}<form method="post" action="/treasurer/manual-transactions/{{.Kind}}/{{.ID}}/reverse" class="inline" data-confirm="Cofnąć ten wpis ({{.Description}}, {{money .AmountMinor}})?">{{template "csrf" $.CSRF}}<button class="btn btn-ghost btn-sm danger" type="submit">Cofnij</button></form>{{end}}</div>
   </li>{{end}}

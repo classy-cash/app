@@ -45,6 +45,8 @@ type Store struct {
 	DB      *sql.DB
 	Loc     *time.Location
 	BaseURL string // public URL used in e-mail links
+	// AttachDir is where expense receipts are kept; empty disables attachments.
+	AttachDir string
 	// Now is injectable for tests.
 	Now func() time.Time
 }

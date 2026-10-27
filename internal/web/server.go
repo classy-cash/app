@@ -215,10 +215,19 @@ func (s *Server) csrf(next http.Handler) http.Handler {
 		}
 		tok := r.Header.Get("X-CSRF-Token")
 		if tok == "" {
-			r.Body = http.MaxBytesReader(w, r.Body, 2<<20)
-			if err := r.ParseForm(); err != nil {
-				s.fail(w, r, http.StatusRequestEntityTooLarge, "Formularz jest zbyt duży.")
-				return
+			if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") && strings.HasPrefix(r.URL.Path, "/treasurer/") {
+				// Receipt uploads: bounded, and only the first MB is held in memory (the rest spills to a temp file).
+				r.Body = http.MaxBytesReader(w, r.Body, store.MaxAttachmentBytes+(1<<20))
+				if err := r.ParseMultipartForm(1 << 20); err != nil {
+					s.fail(w, r, http.StatusRequestEntityTooLarge, "Plik jest zbyt duży (limit 5 MB) albo formularz jest nieprawidłowy.")
+					return
+				}
+			} else {
+				r.Body = http.MaxBytesReader(w, r.Body, 2<<20)
+				if err := r.ParseForm(); err != nil {
+					s.fail(w, r, http.StatusRequestEntityTooLarge, "Formularz jest zbyt duży.")
+					return
+				}
 			}
 			tok = r.PostFormValue("_csrf")
 		}

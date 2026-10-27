@@ -250,15 +250,16 @@ type ManualEntry struct {
 	AmountMinor int64
 	At          time.Time
 	Reversed    bool
+	HasReceipt  bool // an expense with an attached receipt
 }
 
 // ManualEntries lists hand-booked incomes and expenses, newest first, reversed ones included.
 func (s *Store) ManualEntries(ctx context.Context, classID int64, limit int) ([]ManualEntry, error) {
-	rows, err := s.DB.QueryContext(ctx, `SELECT kind, id, descr, amount_minor, at, reversed FROM (
-		SELECT 'income' AS kind, id, COALESCE(note,'Wpłata ogólna') AS descr, amount_minor, COALESCE(paid_at, created_at) AS at, status = 'refunded' AS reversed
+	rows, err := s.DB.QueryContext(ctx, `SELECT kind, id, descr, amount_minor, at, reversed, receipt FROM (
+		SELECT 'income' AS kind, id, COALESCE(note,'Wpłata ogólna') AS descr, amount_minor, COALESCE(paid_at, created_at) AS at, status = 'refunded' AS reversed, 0 AS receipt
 			FROM payments WHERE class_id = ? AND source = 'manual' AND status IN ('paid','refunded')
 		UNION ALL
-		SELECT 'expense', id, label, amount_minor, spent_at, voided_at IS NOT NULL FROM expenses WHERE class_id = ?
+		SELECT 'expense', id, label, amount_minor, spent_at, voided_at IS NOT NULL, attachment_path IS NOT NULL FROM expenses WHERE class_id = ?
 	) ORDER BY at DESC, id DESC LIMIT ?`, classID, classID, limit)
 	if err != nil {
 		return nil, err
@@ -268,7 +269,7 @@ func (s *Store) ManualEntries(ctx context.Context, classID int64, limit int) ([]
 	for rows.Next() {
 		var e ManualEntry
 		var at string
-		if err := rows.Scan(&e.Kind, &e.ID, &e.Description, &e.AmountMinor, &at, &e.Reversed); err != nil {
+		if err := rows.Scan(&e.Kind, &e.ID, &e.Description, &e.AmountMinor, &at, &e.Reversed, &e.HasReceipt); err != nil {
 			return nil, err
 		}
 		e.At = parseTime(at)

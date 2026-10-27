@@ -248,7 +248,7 @@ are the source of truth, pin the wrapper to an app version and re-check on upgra
   (`online` default; `manual` marks hand-booked cash so it appears in "Ostatnie wpisy ręczne" and can be
   reversed) and `payments.note` (its description, e.g. `Jan Kowalski — Wycieczka`). A seed that ignores them
   still loads; add `source='manual'` rows and a voided expense to demonstrate the new screens.
-* Attachments are not implemented in the Go app (the legacy field existed without UI); nothing to seed.
+* Receipts (`expenses.attachment_path`) are files on disk and are disabled in demo mode: leave the column `NULL`.
 
 `scripts/demo_acceptance.py` is a ready-made black-box check for any deployment (see its docstring); it needs only
 HTTP access and discovers the quick-login accounts from the login page.
@@ -263,6 +263,10 @@ buttons present; `generation` increased.
 
 ## 6. Backups and restore
 
+* **Receipts live outside the database**, in `DATA_DIR/attachments/` (one directory per class, files `0600`).
+  `classycash backup` copies only the SQLite file, so back up that directory with it (`rsync`/tar), and restore
+  both together; a database restored without its files just shows the receipt link as "not found". Disabled in
+  demo mode (nothing is written there). Uploads are limited to 5 MB per file.
 * `classycash backup /path/file.db` writes a transactionally consistent copy with SQLite `VACUUM INTO`
   (safe while the server runs; a plain copy of the `.db` file with WAL is not), sets mode `0600`, and verifies it
   with `PRAGMA integrity_check`. It refuses to overwrite an existing file.

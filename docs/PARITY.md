@@ -113,9 +113,15 @@ and resource sampling have no counterpart: those mechanisms do not exist in the 
     without payments can change; waiving completely = cancel the obligation. Migration `0005`
     (`student_payments.amount_override`). Tested by `TestIndividualAmount*`.
 
+24. **Expense receipts (new; the PHP entity had a path column and no UI).** A receipt (PDF, JPG, PNG or WebP,
+    5 MB) can be attached when booking an expense or later, replaced and deleted. The type is decided by content,
+    never by file name; files get random names under `DATA_DIR/attachments/<class>/` (mode 0600); stored paths are
+    resolved strictly inside that directory. They are served only to people who may view the class books (the
+    treasurer, administrators and the council), with `nosniff`, a `sandbox` CSP, `no-store`, and PDFs as
+    downloads. Disabled in demo mode. Tested by `TestReceipt*`.
+
 ## Not implemented (existed only as data fields or unwired templates in PHP)
 
-* Expense attachments (the PHP entity had a path column but no upload UI).
 * In-app notification centre (`Notification` entity without UI) and *scheduled* daily reminder e-mails
   (templates inherited from another project, never scheduled); reminders are manual, see above.
 * The Gmail/IMAP import, Sentry/Swoole/Messenger plumbing, feature-flag bundle (replaced by one setting).
@@ -133,5 +139,6 @@ and resource sampling have no counterpart: those mechanisms do not exist in the 
 * Reversing the *second* of two part-payments on one obligation reopens the obligation as fully pending even
   though the first part stays in the till (an obligation links to its latest payment only). Rare; the ledger and
   cash balance are always right.
-* Still missing (reviewed, not built): expense attachments.
+* Still missing (reviewed, not built): nothing from the gap review is left open; the list of things that were
+  never in the PHP app and are not built either is: scheduled reminders, multi-currency, online payment.
 * MX-based webmail detection is tested with a fake resolver only (real DNS is not exercised in CI).

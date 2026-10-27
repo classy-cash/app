@@ -61,6 +61,7 @@ func newHarness(t *testing.T, mutate func(*config.Config)) *harness {
 	}
 	st := store.New(conn, cfg.Location)
 	st.BaseURL = cfg.BaseURL
+	st.AttachDir = filepath.Join(t.TempDir(), "attachments")
 	srv, err := New(cfg, st, slog.New(slog.NewTextHandler(io.Discard, nil)), mail.CaptureSender{}, migrations.FS)
 	if err != nil {
 		t.Fatal(err)

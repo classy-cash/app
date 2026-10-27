@@ -56,6 +56,9 @@ func (s *Server) treasurerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /treasurer/manual-transactions", m(s.handleManual))
 	mux.HandleFunc("POST /treasurer/manual-transactions", m(s.handleManualPost))
 	mux.HandleFunc("POST /treasurer/manual-transactions/{kind}/{id}/reverse", m(s.handleManualReverse))
+	mux.HandleFunc("GET /treasurer/expenses/{id}/attachment", v(s.handleAttachmentGet))
+	mux.HandleFunc("POST /treasurer/expenses/{id}/attachment", m(s.handleAttachmentUpload))
+	mux.HandleFunc("POST /treasurer/expenses/{id}/attachment/delete", m(s.handleAttachmentDelete))
 	mux.HandleFunc("GET /treasurer/settings", m(s.handleSettings))
 	mux.HandleFunc("POST /treasurer/settings", m(s.handleSettingsSave))
 	mux.HandleFunc("GET /treasurer/members", v(s.handleMembers))
@@ -615,7 +618,7 @@ func (s *Server) handleUserSearch(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleManual(w http.ResponseWriter, r *http.Request) {
 	open, _ := s.Store.OpenStudentPayments(r.Context(), s.classID(r))
 	entries, _ := s.Store.ManualEntries(r.Context(), s.classID(r), 30)
-	p := s.page(r, "Kasa ręczna", "manual", map[string]any{"Open": open, "Entries": entries})
+	p := s.page(r, "Kasa ręczna", "manual", map[string]any{"Open": open, "Entries": entries, "Receipts": s.Store.AttachDir != ""})
 	p.Layout = "layout_treasurer"
 	s.render(w, r, "t_manual", p, http.StatusOK)
 }
@@ -642,11 +645,18 @@ func (s *Server) handleManualPost(w http.ResponseWriter, r *http.Request) {
 			s.setFlash(w, r, "success", "Przychód został zaksięgowany.")
 		}
 	case "expense":
-		if _, err := s.Store.ManualExpense(r.Context(), cid, r.PostFormValue("expense_description"), amount, time.Now()); err != nil {
+		eid, err := s.Store.ManualExpense(r.Context(), cid, r.PostFormValue("expense_description"), amount, time.Now())
+		if err != nil {
 			s.flashErr(w, r, back, err)
 			return
 		}
 		s.setFlash(w, r, "success", "Wydatek został zaksięgowany.")
+		if f, _, ferr := r.FormFile("attachment"); ferr == nil {
+			defer f.Close()
+			if aerr := s.Store.SaveExpenseAttachment(r.Context(), cid, eid, f); aerr != nil {
+				s.setFlash(w, r, "error", "Wydatek zapisano, ale paragonu nie dodano: "+attachmentError(aerr))
+			}
+		}
 	default:
 		s.setFlash(w, r, "error", "Wybierz rodzaj operacji.")
 	}
@@ -670,6 +680,70 @@ func (s *Server) handleManualReverse(w http.ResponseWriter, r *http.Request) {
 	}
 	s.setFlash(w, r, "success", "Wpis został cofnięty, saldo kasy zostało przeliczone.")
 	s.redirect(w, r, back)
+}
+
+// attachmentError turns a store error into a message for the treasurer.
+func attachmentError(err error) string {
+	switch {
+	case errors.Is(err, store.ErrAttachmentType):
+		return "dozwolone są pliki PDF, JPG, PNG i WebP."
+	case errors.Is(err, store.ErrAttachmentSize):
+		return "plik jest większy niż 5 MB."
+	case errors.Is(err, store.ErrAttachmentsOff):
+		return "załączniki są wyłączone na tej instalacji."
+	default:
+		return "nie udało się zapisać pliku."
+	}
+}
+
+func (s *Server) handleAttachmentUpload(w http.ResponseWriter, r *http.Request) {
+	back := "/treasurer/manual-transactions"
+	f, _, err := r.FormFile("attachment")
+	if err != nil {
+		s.setFlash(w, r, "error", "Wybierz plik z paragonem.")
+		s.redirect(w, r, back)
+		return
+	}
+	defer f.Close()
+	switch err := s.Store.SaveExpenseAttachment(r.Context(), s.classID(r), pathID(r, "id"), f); {
+	case err == nil:
+		s.setFlash(w, r, "success", "Paragon został dodany.")
+	case errors.Is(err, store.ErrNotFound):
+		s.setFlash(w, r, "error", "Nie znaleziono wydatku.")
+	default:
+		s.setFlash(w, r, "error", "Nie dodano paragonu: "+attachmentError(err))
+	}
+	s.redirect(w, r, back)
+}
+
+func (s *Server) handleAttachmentDelete(w http.ResponseWriter, r *http.Request) {
+	if err := s.Store.DeleteExpenseAttachment(r.Context(), s.classID(r), pathID(r, "id")); err != nil {
+		s.flashErr(w, r, "/treasurer/manual-transactions", err)
+		return
+	}
+	s.setFlash(w, r, "success", "Paragon został usunięty.")
+	s.redirect(w, r, "/treasurer/manual-transactions")
+}
+
+// handleAttachmentGet serves a receipt to the people who may see the class books. The response is locked
+// down: it is never interpreted as a page, cannot run script and PDFs are offered as downloads.
+func (s *Server) handleAttachmentGet(w http.ResponseWriter, r *http.Request) {
+	a, err := s.Store.ExpenseAttachment(r.Context(), s.classID(r), pathID(r, "id"))
+	if err != nil {
+		s.fail(w, r, http.StatusNotFound, "Nie znaleziono paragonu.")
+		return
+	}
+	h := w.Header()
+	h.Set("Content-Type", a.ContentType)
+	h.Set("Content-Security-Policy", "default-src 'none'; sandbox")
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("Cache-Control", "private, no-store")
+	if a.Inline {
+		h.Set("Content-Disposition", "inline")
+	} else {
+		h.Set("Content-Disposition", `attachment; filename="paragon.pdf"`)
+	}
+	http.ServeFile(w, r, a.Path)
 }
 
 // ---- settings ----

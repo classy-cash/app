@@ -243,6 +243,9 @@ func serve(cfg *config.Config, log *slog.Logger) error {
 	defer conn.Close()
 	st := store.New(conn, cfg.Location)
 	st.BaseURL = cfg.BaseURL
+	if !cfg.Demo { // demo resets would leave orphaned files behind
+		st.AttachDir = filepath.Join(cfg.DataDir, "attachments")
+	}
 
 	var sender mail.Sender = mail.CaptureSender{Log: log}
 	if cfg.Mail.Driver == "relay" {
