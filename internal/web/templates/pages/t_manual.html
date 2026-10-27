@@ -23,4 +23,16 @@
   </form>
 </section>
 </div>
+<section class="card" aria-labelledby="hist-h">
+  <h2 id="hist-h" class="h3">Ostatnie wpisy ręczne</h2>
+  <p class="small muted">Pomyliłeś się? Cofnij wpis — saldo kasy zostanie przeliczone, a wpis zostanie w historii jako cofnięty.</p>
+  {{if .Data.Entries}}<ul class="list">
+  {{range .Data.Entries}}<li class="list-item">
+    <div><p class="strong{{if .Reversed}} struck{{end}}">{{.Description}}</p><p class="small muted">{{if eq .Kind "income"}}Wpłata{{else}}Wydatek{{end}} · {{datetime .At}}</p></div>
+    <div class="row-actions"><p class="strong{{if .Reversed}} struck{{end}}">{{if eq .Kind "income"}}+{{else}}−{{end}}{{money .AmountMinor}}</p>
+    {{if .Reversed}}<span class="badge badge-muted">Cofnięty</span>
+    {{else}}<form method="post" action="/treasurer/manual-transactions/{{.Kind}}/{{.ID}}/reverse" class="inline" data-confirm="Cofnąć ten wpis ({{.Description}}, {{money .AmountMinor}})?">{{template "csrf" $.CSRF}}<button class="btn btn-ghost btn-sm danger" type="submit">Cofnij</button></form>{{end}}</div>
+  </li>{{end}}
+  </ul>{{else}}<p class="empty">Brak wpisów ręcznych.</p>{{end}}
+</section>
 {{end}}

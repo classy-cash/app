@@ -21,7 +21,7 @@
 <section class="card" aria-labelledby="c{{.ID}}">
   <div class="card-head">
     <div><h2 id="c{{.ID}}" class="h3">Zbiórka: {{.Title}}</h2><p class="small muted">{{if .DueAt}}Termin: {{datep .DueAt}}{{else}}Bez terminu{{end}}</p></div>
-    {{if .Overdue}}<span class="badge badge-danger">! Po terminie</span>{{else}}<span class="badge badge-info">… Trwa</span>{{end}}
+    {{if .Closed}}<span class="badge badge-muted">Zakończona</span>{{else if .Overdue}}<span class="badge badge-danger">! Po terminie</span>{{else}}<span class="badge badge-info">… Trwa</span>{{end}}
   </div>
   <p class="small">Postęp wpłat ({{money .AmountMinor}}): <strong>{{.PaidCount}}/{{len .Items}}</strong> opłacone · zebrano {{money .TotalPaid}} z {{money .ExpectedTotal}}</p>
   <progress class="progress" max="100" value="{{.ProgressPct}}">{{.ProgressPct}}%</progress>
@@ -48,6 +48,29 @@
     {{end}}
     </ul>
   </details>
+  {{if $.IsManager}}<details class="manage"><summary>Edytuj lub zakończ zbiórkę</summary>
+    <form method="post" action="/treasurer/contributions/{{.ID}}/edit" class="stack">{{template "csrf" $.CSRF}}
+      <div class="grid-3">
+        <div class="field"><label class="label" for="et{{.ID}}">Tytuł</label><input class="input" id="et{{.ID}}" name="title" maxlength="128" value="{{.Title}}" required></div>
+        <div class="field"><label class="label" for="ea{{.ID}}">Kwota (PLN)</label><input class="input" id="ea{{.ID}}" name="amount_pln" inputmode="decimal" value="{{plain .AmountMinor}}" required></div>
+        <div class="field"><label class="label" for="ed{{.ID}}">Termin</label><input class="input" id="ed{{.ID}}" name="due_at" type="date" value="{{input_date .DueAt}}"></div>
+      </div>
+      <p class="small muted">Zmiana kwoty dotyczy tylko nieopłaconych obowiązków; opłacone zostają bez zmian.</p>
+      <div class="actions"><button class="btn btn-primary btn-sm" type="submit">Zapisz zmiany</button></div>
+    </form>
+    {{if and (not .Closed) .Available}}<form method="post" action="/treasurer/contributions/{{.ID}}/students" class="inline-form">{{template "csrf" $.CSRF}}
+      <label class="label" for="as{{.ID}}">Dodaj ucznia do zbiórki</label>
+      <select class="input" id="as{{.ID}}" name="student_id" required><option value="">Wybierz ucznia…</option>{{range .Available}}<option value="{{.ID}}">{{.FullName}}</option>{{end}}</select>
+      <button class="btn btn-outline btn-sm" type="submit">Dodaj</button>
+    </form>{{end}}
+    <div class="row-actions start">
+      {{if .Closed}}<form method="post" action="/treasurer/contributions/{{.ID}}/reopen" class="inline">{{template "csrf" $.CSRF}}<button class="btn btn-outline btn-sm" type="submit">Wznów zbiórkę</button></form>
+      {{else}}<form method="post" action="/treasurer/contributions/{{.ID}}/close" class="inline" data-confirm="Zakończyć zbiórkę „{{.Title}}”? Nowi uczniowie nie będą już do niej dopisywani.">{{template "csrf" $.CSRF}}
+        <label class="check small"><input type="checkbox" name="cancel_unpaid" value="1"><span>anuluj obowiązki, za które nikt jeszcze nie zapłacił</span></label>
+        <button class="btn btn-outline btn-sm" type="submit">Zakończ zbiórkę</button></form>{{end}}
+      {{if .CanDelete}}<form method="post" action="/treasurer/contributions/{{.ID}}/delete" class="inline" data-confirm="Usunąć zbiórkę „{{.Title}}” razem z obowiązkami? Tej operacji nie można cofnąć.">{{template "csrf" $.CSRF}}<button class="btn btn-ghost btn-sm danger" type="submit">Usuń (pomyłka)</button></form>{{end}}
+    </div>
+  </details>{{end}}
 </section>
 {{else}}<section class="card"><p class="empty">Brak aktywnych zbiórek</p></section>{{end}}
 {{end}}

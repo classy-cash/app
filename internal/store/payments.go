@@ -163,6 +163,7 @@ type ContributionView struct {
 	ProgressPct   int
 	ExpectedTotal int64
 	Closed        bool
+	CanDelete     bool      // nobody has paid into it yet
 	Available     []Student // class students not (any more) on this collection
 }
 
@@ -279,8 +280,12 @@ func (s *Store) ContributionViews(ctx context.Context, classID int64) ([]Contrib
 			v.ProgressPct = int(v.TotalPaid * 100 / v.ExpectedTotal)
 		}
 		on := map[int64]bool{}
+		v.CanDelete = true
 		for _, it := range v.Items {
 			on[it.Student.ID] = true
+			if it.SP != nil && it.SP.Status != SPPending {
+				v.CanDelete = false
+			}
 		}
 		for _, st := range roster {
 			if !on[st.ID] {

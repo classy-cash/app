@@ -34,6 +34,11 @@ func (s *Server) treasurerRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET /treasurer/contributions", v(s.handleContributions))
 	mux.HandleFunc("POST /treasurer/contributions", m(s.handleContributionCreate))
+	mux.HandleFunc("POST /treasurer/contributions/{id}/edit", m(s.handleContributionEdit))
+	mux.HandleFunc("POST /treasurer/contributions/{id}/students", m(s.handleContributionAddStudent))
+	mux.HandleFunc("POST /treasurer/contributions/{id}/close", m(s.handleContributionClose))
+	mux.HandleFunc("POST /treasurer/contributions/{id}/reopen", m(s.handleContributionReopen))
+	mux.HandleFunc("POST /treasurer/contributions/{id}/delete", m(s.handleContributionDelete))
 	mux.HandleFunc("POST /treasurer/obligations/{id}/payment", m(s.handleObligationPayment))
 	mux.HandleFunc("POST /treasurer/obligations/{id}/paid", m(s.handleObligationPaid))
 	mux.HandleFunc("POST /treasurer/obligations/{id}/cancel", m(s.handleObligationCancel))
@@ -48,6 +53,7 @@ func (s *Server) treasurerRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET /treasurer/manual-transactions", m(s.handleManual))
 	mux.HandleFunc("POST /treasurer/manual-transactions", m(s.handleManualPost))
+	mux.HandleFunc("POST /treasurer/manual-transactions/{kind}/{id}/reverse", m(s.handleManualReverse))
 	mux.HandleFunc("GET /treasurer/settings", m(s.handleSettings))
 	mux.HandleFunc("POST /treasurer/settings", m(s.handleSettingsSave))
 	mux.HandleFunc("GET /treasurer/members", v(s.handleMembers))
@@ -338,6 +344,65 @@ func (s *Server) handleContributionCreate(w http.ResponseWriter, r *http.Request
 	s.redirect(w, r, "/treasurer/contributions")
 }
 
+func (s *Server) handleContributionEdit(w http.ResponseWriter, r *http.Request) {
+	title := strings.TrimSpace(r.PostFormValue("title"))
+	amount, aerr := money.Parse(r.PostFormValue("amount_pln"))
+	due, derr := s.parseDue(r.PostFormValue("due_at"))
+	if title == "" || aerr != nil || amount <= 0 || derr != nil {
+		s.setFlash(w, r, "error", "Tytuł i poprawna kwota składki są wymagane.")
+		s.redirect(w, r, "/treasurer/contributions")
+		return
+	}
+	if err := s.Store.UpdateContribution(r.Context(), s.classID(r), pathID(r, "id"), title, amount, due); err != nil {
+		s.flashErr(w, r, "/treasurer/contributions", err)
+		return
+	}
+	s.setFlash(w, r, "success", "Zbiórka została zaktualizowana.")
+	s.redirect(w, r, "/treasurer/contributions")
+}
+
+func (s *Server) handleContributionAddStudent(w http.ResponseWriter, r *http.Request) {
+	sid, _ := strconv.ParseInt(r.PostFormValue("student_id"), 10, 64)
+	if err := s.Store.AddStudentToContribution(r.Context(), s.classID(r), pathID(r, "id"), sid); err != nil {
+		s.flashErr(w, r, "/treasurer/contributions", err)
+		return
+	}
+	s.setFlash(w, r, "success", "Uczeń został dopisany do zbiórki.")
+	s.redirect(w, r, "/treasurer/contributions")
+}
+
+func (s *Server) handleContributionClose(w http.ResponseWriter, r *http.Request) {
+	n, err := s.Store.SetContributionClosed(r.Context(), s.classID(r), pathID(r, "id"), true, r.PostFormValue("cancel_unpaid") != "")
+	if err != nil {
+		s.flashErr(w, r, "/treasurer/contributions", err)
+		return
+	}
+	msg := "Zbiórka została zakończona."
+	if n > 0 {
+		msg += " Anulowano obowiązki: " + strconv.Itoa(n) + "."
+	}
+	s.setFlash(w, r, "success", msg)
+	s.redirect(w, r, "/treasurer/contributions")
+}
+
+func (s *Server) handleContributionReopen(w http.ResponseWriter, r *http.Request) {
+	if _, err := s.Store.SetContributionClosed(r.Context(), s.classID(r), pathID(r, "id"), false, false); err != nil {
+		s.flashErr(w, r, "/treasurer/contributions", err)
+		return
+	}
+	s.setFlash(w, r, "success", "Zbiórka została wznowiona.")
+	s.redirect(w, r, "/treasurer/contributions")
+}
+
+func (s *Server) handleContributionDelete(w http.ResponseWriter, r *http.Request) {
+	if err := s.Store.DeleteContribution(r.Context(), s.classID(r), pathID(r, "id")); err != nil {
+		s.flashErr(w, r, "/treasurer/contributions", err)
+		return
+	}
+	s.setFlash(w, r, "success", "Zbiórka została usunięta.")
+	s.redirect(w, r, "/treasurer/contributions")
+}
+
 func (s *Server) handleObligationPayment(w http.ResponseWriter, r *http.Request) {
 	if err := s.Store.EnsureStudentPayment(r.Context(), s.classID(r), pathID(r, "id"), *state(r).user); err != nil {
 		s.flashErr(w, r, "/treasurer/contributions", err)
@@ -413,11 +478,20 @@ func (s *Server) handleStudentAdd(w http.ResponseWriter, r *http.Request) {
 		}
 		parents = append(parents, u.ID)
 	}
-	if _, err := s.Store.AddStudent(r.Context(), s.classID(r), r.PostFormValue("first_name"), r.PostFormValue("last_name"), parents); err != nil {
+	st, err := s.Store.AddStudent(r.Context(), s.classID(r), r.PostFormValue("first_name"), r.PostFormValue("last_name"), parents)
+	if err != nil {
 		s.flashErr(w, r, "/treasurer/students", err)
 		return
 	}
-	s.setFlash(w, r, "success", "Uczeń został dodany.")
+	msg := "Uczeń został dodany."
+	if r.PostFormValue("join_open") != "" {
+		if titles, err := s.Store.EnrolInOpenContributions(r.Context(), s.classID(r), st.ID); err != nil {
+			s.Log.Error("enrol late student", "err", err)
+		} else if len(titles) > 0 {
+			msg += " Dopisano do zbiórek: " + strings.Join(titles, ", ") + "."
+		}
+	}
+	s.setFlash(w, r, "success", msg)
 	s.redirect(w, r, "/treasurer/students")
 }
 
@@ -492,7 +566,8 @@ func (s *Server) handleUserSearch(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleManual(w http.ResponseWriter, r *http.Request) {
 	open, _ := s.Store.OpenStudentPayments(r.Context(), s.classID(r))
-	p := s.page(r, "Kasa ręczna", "manual", map[string]any{"Open": open})
+	entries, _ := s.Store.ManualEntries(r.Context(), s.classID(r), 30)
+	p := s.page(r, "Kasa ręczna", "manual", map[string]any{"Open": open, "Entries": entries})
 	p.Layout = "layout_treasurer"
 	s.render(w, r, "t_manual", p, http.StatusOK)
 }
@@ -527,6 +602,25 @@ func (s *Server) handleManualPost(w http.ResponseWriter, r *http.Request) {
 	default:
 		s.setFlash(w, r, "error", "Wybierz rodzaj operacji.")
 	}
+	s.redirect(w, r, back)
+}
+
+func (s *Server) handleManualReverse(w http.ResponseWriter, r *http.Request) {
+	back := "/treasurer/manual-transactions"
+	var err error
+	switch r.PathValue("kind") {
+	case "income":
+		err = s.Store.ReverseManualIncome(r.Context(), s.classID(r), pathID(r, "id"))
+	case "expense":
+		err = s.Store.VoidExpense(r.Context(), s.classID(r), pathID(r, "id"))
+	default:
+		err = store.ErrNotFound
+	}
+	if err != nil {
+		s.flashErr(w, r, back, err)
+		return
+	}
+	s.setFlash(w, r, "success", "Wpis został cofnięty, saldo kasy zostało przeliczone.")
 	s.redirect(w, r, back)
 }
 
