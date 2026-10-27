@@ -18,7 +18,7 @@
 {{define "content"}}
 <header class="page-head">
   <div><h1 class="serif">Panel główny</h1><p class="muted">Podsumowanie finansów klasy {{.Class.Name}}.</p></div>
-  <a class="btn btn-primary" href="/treasurer/manual-transactions">Nowa transakcja</a>
+  {{if .IsManager}}<a class="btn btn-primary" href="/treasurer/manual-transactions">Nowa transakcja</a>{{end}}
 </header>
 <div data-cards-host data-url="/treasurer/dashboard/cards">{{template "cards" .Data}}</div>
 <section class="card" aria-labelledby="ledger-h">

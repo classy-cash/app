@@ -1,0 +1,28 @@
+{{define "content"}}
+<header class="page-head"><div><h1 class="serif">Rada klasowa</h1><p class="muted">Skarbnik prowadzi kasę. Przewodniczący i wiceprzewodniczący rady klasowej mają wgląd w dane klasy i raporty — bez prawa zmian.</p></div></header>
+<section class="card" aria-labelledby="m-h">
+  <h2 id="m-h" class="h3">Osoby w klasie {{.Class.Name}}</h2>
+  <div class="table-wrap"><table class="table responsive"><thead><tr><th scope="col">Osoba</th><th scope="col">E-mail</th><th scope="col">Rola</th>{{if .IsManager}}<th scope="col">Zmień rolę</th>{{end}}</tr></thead><tbody>
+  {{range .Data.Members}}<tr>
+    <td data-label="Osoba" class="strong">{{.User.Name}}</td><td data-label="E-mail">{{.User.Email}}</td>
+    <td data-label="Rola">{{if eq .Role "treasurer"}}<span class="badge badge-info">Skarbnik</span>{{else if eq .Role "president"}}<span class="badge badge-ok">★ Przewodniczący</span>{{else if eq .Role "vice_president"}}<span class="badge badge-ok">★ Wiceprzewodniczący</span>{{else}}<span class="badge badge-muted">Rodzic</span>{{end}}</td>
+    {{if $.IsManager}}<td data-label="Zmień rolę">{{if eq .Role "treasurer"}}<span class="muted small">zmienia administrator</span>{{else}}
+      <form method="post" action="/treasurer/members/{{.User.ID}}/role" class="inline-form">{{template "csrf" $.CSRF}}
+        <label class="visually-hidden" for="role-{{.User.ID}}">Rola dla {{.User.Name}}</label>
+        <select class="input" id="role-{{.User.ID}}" name="role"><option value="parent" {{if eq .Role "parent"}}selected{{end}}>Rodzic</option><option value="president" {{if eq .Role "president"}}selected{{end}}>Przewodniczący</option><option value="vice_president" {{if eq .Role "vice_president"}}selected{{end}}>Wiceprzewodniczący</option></select>
+        <button class="btn btn-outline btn-sm" type="submit">Zapisz</button></form>{{end}}</td>{{end}}
+  </tr>{{else}}<tr><td colspan="4" class="empty">Brak osób w klasie</td></tr>{{end}}</tbody></table></div>
+</section>
+{{if .IsManager}}<section class="card" aria-labelledby="inv-h">
+  <h2 id="inv-h" class="h3">Dodaj osobę do rady klasowej</h2>
+  <p class="small muted">Nowe konto dostanie zaproszenie z linkiem do logowania. W klasie może być jeden przewodniczący i jeden wiceprzewodniczący.</p>
+  <form method="post" action="/treasurer/members" class="stack">{{template "csrf" .CSRF}}
+    <div class="grid-3">
+      <div class="field"><label class="label" for="inv-name">Imię i nazwisko</label><input class="input" id="inv-name" name="name"></div>
+      <div class="field"><label class="label" for="inv-email">E-mail</label><input class="input" id="inv-email" name="email" type="email" required></div>
+      <div class="field"><label class="label" for="inv-role">Rola</label><select class="input" id="inv-role" name="role"><option value="president">Przewodniczący</option><option value="vice_president">Wiceprzewodniczący</option><option value="parent">Rodzic</option></select></div>
+    </div>
+    <div class="actions"><button class="btn btn-primary" type="submit">Zapisz</button></div>
+  </form>
+</section>{{end}}
+{{end}}

@@ -1,6 +1,6 @@
 {{define "content"}}
 <header class="page-head"><div><h1 class="serif">Uczniowie i rodzice</h1><p class="muted">Zarządzaj danymi uczniów i łącz wiele kont rodziców z jednym dzieckiem.</p></div>
-  <button class="btn btn-primary" type="button" data-open="add-student">Dodaj ucznia</button></header>
+  {{if .IsManager}}<button class="btn btn-primary" type="button" data-open="add-student">Dodaj ucznia</button>{{end}}</header>
 <section class="card" aria-labelledby="roster-h">
   <h2 id="roster-h" class="h3">Lista uczniów {{.Class.Name}}</h2>
   <ul class="list student-list">
@@ -9,36 +9,36 @@
       <div class="student-head">
         <span class="avatar" aria-hidden="true">{{.Initials}}</span>
         <div><p class="strong">{{.FullName}}</p><p class="small muted">{{len .Parents}} {{if eq (len .Parents) 1}}konto rodzica{{else}}kont rodziców{{end}}</p></div>
-        <div class="row-actions">
+        {{if $.IsManager}}<div class="row-actions">
           <button class="btn btn-outline btn-sm" type="button" data-open="edit-{{.ID}}">Edytuj dane</button>
-        </div>
+        </div>{{end}}
       </div>
       <ul class="parents">
         {{$sid := .ID}}{{range .Parents}}<li><span>{{.Name}} <span class="muted">({{.Email}})</span></span>
-          <form method="post" action="/treasurer/students/{{$sid}}/parents/{{.ID}}/remove" class="inline" data-confirm="Odłączyć {{.Name}} od ucznia?">{{template "csrf" $.CSRF}}<button class="btn btn-ghost btn-sm danger" type="submit" aria-label="Odłącz {{.Name}}">Odłącz</button></form></li>
+          {{if $.IsManager}}<form method="post" action="/treasurer/students/{{$sid}}/parents/{{.ID}}/remove" class="inline" data-confirm="Odłączyć {{.Name}} od ucznia?">{{template "csrf" $.CSRF}}<button class="btn btn-ghost btn-sm danger" type="submit" aria-label="Odłącz {{.Name}}">Odłącz</button></form>{{end}}</li>
         {{else}}<li class="muted">Brak podpiętych kont rodziców</li>{{end}}
       </ul>
-      <form method="post" action="/treasurer/students/{{.ID}}/parents" class="parent-add">
+      {{if $.IsManager}}<form method="post" action="/treasurer/students/{{.ID}}/parents" class="parent-add">
         {{template "csrf" $.CSRF}}
         <label class="visually-hidden" for="pe-{{.ID}}">E-mail rodzica</label><input class="input" id="pe-{{.ID}}" name="email" type="email" placeholder="e-mail rodzica" list="members" required>
         <label class="visually-hidden" for="pn-{{.ID}}">Imię i nazwisko rodzica</label><input class="input" id="pn-{{.ID}}" name="name" placeholder="imię i nazwisko (dla nowego konta)">
         <button class="btn btn-outline btn-sm" type="submit">Dodaj rodzica</button>
-      </form>
-      <dialog id="edit-{{.ID}}" class="modal" aria-labelledby="edit-t-{{.ID}}"><div class="modal-body">
+      </form>{{end}}
+      {{if $.IsManager}}<dialog id="edit-{{.ID}}" class="modal" aria-labelledby="edit-t-{{.ID}}"><div class="modal-body">
         <button class="icon-btn modal-close" type="button" data-close aria-label="Zamknij">×</button>
         <h2 class="serif" id="edit-t-{{.ID}}">Edytuj ucznia</h2>
         <form method="post" action="/treasurer/students/{{.ID}}/edit" class="stack">{{template "csrf" $.CSRF}}
           <div class="field"><label class="label" for="ef-{{.ID}}">Imię</label><input class="input" id="ef-{{.ID}}" name="first_name" value="{{.FirstName}}" required></div>
           <div class="field"><label class="label" for="el-{{.ID}}">Nazwisko</label><input class="input" id="el-{{.ID}}" name="last_name" value="{{.LastName}}" required></div>
           <div class="actions"><button class="btn btn-ghost" type="button" data-close>Anuluj</button><button class="btn btn-primary" type="submit">Zapisz</button></div>
-        </form></div></dialog>
+        </form></div></dialog>{{end}}
     </li>
   {{else}}<li class="empty">Brak uczniów w klasie</li>{{end}}
   </ul>
-  {{if gt (len .Data.Students) 1}}<p><button class="btn btn-outline" type="button" data-open="merge">Połącz uczniów</button></p>{{end}}
+  {{if and .IsManager (gt (len .Data.Students) 1)}}<p><button class="btn btn-outline" type="button" data-open="merge">Połącz uczniów</button></p>{{end}}
 </section>
 
-<datalist id="members"></datalist>
+{{if .IsManager}}<datalist id="members"></datalist>
 <dialog id="add-student" class="modal" aria-labelledby="as-t"><div class="modal-body">
   <button class="icon-btn modal-close" type="button" data-close aria-label="Zamknij">×</button>
   <h2 class="serif" id="as-t">Dodaj ucznia</h2>
@@ -59,4 +59,5 @@
     <p class="alert alert-info"><span class="alert-icon" aria-hidden="true">!</span><span>Płatności i konta rodziców zostaną przeniesione do ucznia głównego. Uczeń duplikat zostanie oznaczony jako usunięty.</span></p>
     <div class="actions"><button class="btn btn-ghost" type="button" data-close>Anuluj</button><button class="btn btn-primary" type="submit">Połącz uczniów</button></div>
   </form></div></dialog>
+{{end}}
 {{end}}

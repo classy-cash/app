@@ -23,8 +23,10 @@
       <a class="nav-link {{if eq .Active "payments"}}active{{end}}" href="/treasurer/payments" {{if eq .Active "payments"}}aria-current="page"{{end}}><span class="ico" aria-hidden="true">₪</span>Operacje bankowe</a>
       <a class="nav-link {{if eq .Active "contributions"}}active{{end}}" href="/treasurer/contributions" {{if eq .Active "contributions"}}aria-current="page"{{end}}><span class="ico" aria-hidden="true">☰</span>Zarządzaj składkami</a>
       <a class="nav-link {{if eq .Active "students"}}active{{end}}" href="/treasurer/students" {{if eq .Active "students"}}aria-current="page"{{end}}><span class="ico" aria-hidden="true">☺</span>Uczniowie i rodzice</a>
-      <a class="nav-link {{if eq .Active "manual"}}active{{end}}" href="/treasurer/manual-transactions" {{if eq .Active "manual"}}aria-current="page"{{end}}><span class="ico" aria-hidden="true">+</span>Kasa ręczna</a>
-      <a class="nav-link {{if eq .Active "settings"}}active{{end}}" href="/treasurer/settings" {{if eq .Active "settings"}}aria-current="page"{{end}}><span class="ico" aria-hidden="true">⚙</span>Ustawienia</a>
+      {{if .IsManager}}<a class="nav-link {{if eq .Active "manual"}}active{{end}}" href="/treasurer/manual-transactions" {{if eq .Active "manual"}}aria-current="page"{{end}}><span class="ico" aria-hidden="true">+</span>Kasa ręczna</a>{{end}}
+      <a class="nav-link {{if eq .Active "reports"}}active{{end}}" href="/treasurer/reports" {{if eq .Active "reports"}}aria-current="page"{{end}}><span class="ico" aria-hidden="true">▤</span>Raporty</a>
+      <a class="nav-link {{if eq .Active "members"}}active{{end}}" href="/treasurer/members" {{if eq .Active "members"}}aria-current="page"{{end}}><span class="ico" aria-hidden="true">★</span>Rada klasowa</a>
+      {{if .IsManager}}<a class="nav-link {{if eq .Active "settings"}}active{{end}}" href="/treasurer/settings" {{if eq .Active "settings"}}aria-current="page"{{end}}><span class="ico" aria-hidden="true">⚙</span>Ustawienia</a>{{end}}
       {{if .User.IsAdmin}}
       <p class="nav-group">Administrator</p>
       <a class="nav-link {{if eq .Active "classes"}}active{{end}}" href="/admin/classes" {{if eq .Active "classes"}}aria-current="page"{{end}}><span class="ico" aria-hidden="true">❖</span>Klasy</a>
@@ -34,13 +36,14 @@
   </div>
   <div class="sidebar-user">
     <div class="avatar" aria-hidden="true">{{initial .User.Name}}</div>
-    <div><p class="user-name">{{.User.Name}}</p><p class="user-role">{{if .User.IsAdmin}}Administrator{{else}}Skarbnik{{end}}</p></div>
+    <div><p class="user-name">{{.User.Name}}</p><p class="user-role">{{.RoleLabel}}</p></div>
     <form method="post" action="/logout">{{template "csrf" .CSRF}}<button class="link-btn danger" type="submit">Wyloguj się</button></form>
     <p class="small muted version">{{release}}</p>
   </div>
 </aside>
 <div class="sidebar-backdrop" data-toggle-sidebar hidden></div>
 <main id="main" class="content">
+  {{if not .IsManager}}<p class="alert alert-info" role="note"><span class="alert-icon" aria-hidden="true">i</span><span><strong>Tryb podglądu.</strong> Jako {{.RoleLabel}} możesz przeglądać dane klasy i raporty. Zmiany wprowadza skarbnik.</span></p>{{end}}
   {{template "flashes" .}}
   {{template "content" .}}
 </main>

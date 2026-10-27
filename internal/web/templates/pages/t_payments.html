@@ -1,7 +1,7 @@
 {{define "content"}}
 <header class="page-head"><div><h1 class="serif">Lista operacji bankowych</h1><p class="muted">Przegląd zaksięgowanych przelewów i obsługa błędnych tytułów.</p></div></header>
 
-{{if not .Demo}}<section class="card bank-card" aria-labelledby="bank-h">
+{{if and (not .Demo) .IsManager}}<section class="card bank-card" aria-labelledby="bank-h">
   <h2 id="bank-h" class="h3">Powiadomienia z banku</h2>
   {{if .Data.BankEnabled}}
     <p>Ustaw w Alior Banku powiadomienia e-mail o wpływach na ten adres:</p>
@@ -11,7 +11,7 @@
   {{else}}
     <p class="muted">Automatyczne księgowanie z banku nie jest jeszcze skonfigurowane na tej instalacji. Przelewy możesz dopasować ręcznie w sekcji „Kasa ręczna”.</p>
   {{end}}
-</section>{{else}}
+</section>{{else if .Demo}}
 <section class="card"><p class="muted">Tryb demo: prawdziwe powiadomienia bankowe są wyłączone. Przykładowe operacje poniżej są wymyślone.</p></section>{{end}}
 
 {{if .Data.Events}}<section class="card" aria-labelledby="ev-h">
@@ -36,7 +36,8 @@
       </td>
       <td data-label="Kwota" class="num strong">{{money .AmountMinor}}</td>
       <td data-label="Akcja" class="actions-cell">
-        {{if .ReviewReason}}
+        {{if not $.IsManager}}<span class="muted small">—</span>
+        {{else if .ReviewReason}}
           <form method="post" action="/treasurer/payments/{{.ID}}/review" class="inline">{{template "csrf" $.CSRF}}<input type="hidden" name="action" value="approve"><button class="btn btn-primary btn-sm" type="submit">To nowa wpłata</button></form>
           <form method="post" action="/treasurer/payments/{{.ID}}/review" class="inline" data-confirm="Odrzucić ten przelew jako duplikat?">{{template "csrf" $.CSRF}}<input type="hidden" name="action" value="dismiss"><button class="btn btn-outline btn-sm" type="submit">Odrzuć duplikat</button></form>
         {{else if not .IsMatched}}<a class="btn btn-accent btn-sm" href="/treasurer/payments/{{.ID}}/assign">Przypisz ręcznie</a>

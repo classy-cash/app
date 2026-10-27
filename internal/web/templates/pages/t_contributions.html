@@ -1,6 +1,6 @@
 {{define "content"}}
 <header class="page-head"><div><h1 class="serif">Zarządzanie składkami</h1><p class="muted">Twórz nowe cele i edytuj obowiązek wpłat dla poszczególnych uczniów.</p></div></header>
-<section class="card" aria-labelledby="new-h">
+{{if .IsManager}}<section class="card" aria-labelledby="new-h">
   <h2 id="new-h" class="h3">Utwórz składkę</h2>
   <form method="post" action="/treasurer/contributions" class="stack">
     {{template "csrf" .CSRF}}
@@ -16,7 +16,7 @@
     </fieldset>
     <div class="actions"><button class="btn btn-primary" type="submit">Uruchom składkę</button></div>
   </form>
-</section>
+</section>{{end}}
 {{range .Data.Contributions}}
 <section class="card" aria-labelledby="c{{.ID}}">
   <div class="card-head">
@@ -33,6 +33,7 @@
         <div class="row-actions">
         {{if not $sp}}<span class="muted">Anulowano</span>
         {{else if eq $sp.Status "paid"}}<span class="badge badge-ok">✓ Zapłacono</span>
+        {{else if not $.IsManager}}<span class="badge badge-warn">Do zapłaty</span>{{if $sp.Code}} <span class="small muted">Kod: <span class="mono code">{{$sp.Code}}</span></span>{{end}}
         {{else}}
           {{if $sp.Code}}<span class="small muted">Kod: <span class="mono code">{{$sp.Code}}</span></span>
             <form method="post" action="/treasurer/obligations/{{$sp.ID}}/paid" class="inline">{{template "csrf" $.CSRF}}<button class="btn btn-primary btn-sm" type="submit">Oznacz jako opłacone</button></form>

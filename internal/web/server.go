@@ -289,6 +289,32 @@ func (s *Server) needManager(h handler) http.HandlerFunc {
 	}))
 }
 
+// needViewer allows read access to the class panel: treasurer, administrator and class council.
+func (s *Server) needViewer(h handler) http.HandlerFunc {
+	return s.needInstalled(s.needUser(func(w http.ResponseWriter, r *http.Request) {
+		st := state(r)
+		if st.class == nil || !s.Store.CanView(r.Context(), *st.user, st.class.ID) {
+			s.fail(w, r, http.StatusForbidden, "Ta sekcja jest dostępna tylko dla skarbnika i rady klasowej.")
+			return
+		}
+		h(w, r)
+	}))
+}
+
+func roleLabel(admin bool, role string) string {
+	switch {
+	case admin:
+		return "Administrator"
+	case role == store.RoleTreasurer:
+		return "Skarbnik"
+	case role == store.RolePresident:
+		return "Przewodniczący rady klasowej"
+	case role == store.RoleVicePresident:
+		return "Wiceprzewodniczący rady klasowej"
+	}
+	return "Rodzic"
+}
+
 func (s *Server) needAdmin(h handler) http.HandlerFunc {
 	return s.needInstalled(s.needUser(func(w http.ResponseWriter, r *http.Request) {
 		if !state(r).user.IsAdmin {
@@ -339,6 +365,8 @@ type pageData struct {
 	Class     *store.Class
 	Classes   []store.Class
 	IsManager bool
+	IsViewer  bool
+	RoleLabel string
 	Flashes   []flash
 	CSRF      string
 	Demo      bool
@@ -356,6 +384,10 @@ func (s *Server) page(r *http.Request, title, active string, data any) *pageData
 		CSRF: auth.CSRF(s.Cfg.SessionSecret, st.csrfCookie), Demo: s.Cfg.Demo, Active: active, Version: version.Version, Path: r.URL.Path, Data: data}
 	if st.user != nil && st.class != nil {
 		p.IsManager = s.Store.CanManage(r.Context(), *st.user, st.class.ID)
+		p.IsViewer = p.IsManager || store.IsCouncil(st.role)
+	}
+	if st.user != nil {
+		p.RoleLabel = roleLabel(st.user.IsAdmin, st.role)
 	}
 	if s.Cfg.Demo {
 		p.NextAt = nextQuarter(time.Now()).Unix()

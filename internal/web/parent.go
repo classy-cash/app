@@ -27,7 +27,7 @@ func (s *Server) handleHome(w http.ResponseWriter, r *http.Request) {
 		s.render(w, r, "no_class", p, http.StatusOK)
 		return
 	}
-	if s.Store.CanManage(r.Context(), *st.user, st.class.ID) {
+	if s.Store.CanManage(r.Context(), *st.user, st.class.ID) { // council members land on their own children
 		s.redirect(w, r, "/treasurer/dashboard")
 		return
 	}

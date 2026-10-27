@@ -115,6 +115,19 @@ func (s *Store) CanManage(ctx context.Context, u User, classID int64) bool {
 	return err == nil && role == RoleTreasurer
 }
 
+// IsCouncil reports a chairperson or deputy role in the class.
+func IsCouncil(role string) bool { return role == RolePresident || role == RoleVicePresident }
+
+// CanView reports read access to the class panel and reports: the treasurer and administrators
+// (who can also change things) plus the class council, who can only look.
+func (s *Store) CanView(ctx context.Context, u User, classID int64) bool {
+	if s.CanManage(ctx, u, classID) {
+		return true
+	}
+	role, err := s.RoleIn(ctx, u, classID)
+	return err == nil && IsCouncil(role)
+}
+
 // IsMember reports any membership (or administrator access) in the class.
 func (s *Store) IsMember(ctx context.Context, u User, classID int64) bool {
 	role, err := s.RoleIn(ctx, u, classID)
@@ -132,11 +145,13 @@ func (s *Store) SetMember(ctx context.Context, classID, userID int64, role strin
 }
 
 func setMember(ctx context.Context, x querier, classID, userID int64, role string) error {
-	if role == RoleTreasurer {
+	// treasurer, president and vice_president are single seats per class.
+	switch role {
+	case RoleTreasurer, RolePresident, RoleVicePresident:
 		var other int64
-		err := x.QueryRowContext(ctx, `SELECT user_id FROM memberships WHERE class_id = ? AND role = 'treasurer' AND user_id <> ?`, classID, userID).Scan(&other)
+		err := x.QueryRowContext(ctx, `SELECT user_id FROM memberships WHERE class_id = ? AND role = ? AND user_id <> ?`, classID, role, userID).Scan(&other)
 		if err == nil {
-			return errf(ErrConflict, "the class already has a treasurer")
+			return errf(ErrConflict, "the class already has a %s", role)
 		}
 		if err != sql.ErrNoRows {
 			return err

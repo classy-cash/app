@@ -15,14 +15,15 @@ import (
 )
 
 func (s *Server) treasurerRoutes(mux *http.ServeMux) {
-	m := s.needManager
-	mux.HandleFunc("GET /treasurer", m(s.handleDashboard))
-	mux.HandleFunc("GET /treasurer/{$}", m(s.handleDashboard))
-	mux.HandleFunc("GET /treasurer/dashboard", m(s.handleDashboard))
-	mux.HandleFunc("GET /treasurer/dashboard/cards", m(s.handleDashboardCards))
-	mux.HandleFunc("GET /treasurer/ledger", m(s.handleLedgerRows))
+	m := s.needManager // can change data: treasurer and administrators
+	v := s.needViewer  // can look: the above plus the class council (przewodniczący, wiceprzewodniczący)
+	mux.HandleFunc("GET /treasurer", v(s.handleDashboard))
+	mux.HandleFunc("GET /treasurer/{$}", v(s.handleDashboard))
+	mux.HandleFunc("GET /treasurer/dashboard", v(s.handleDashboard))
+	mux.HandleFunc("GET /treasurer/dashboard/cards", v(s.handleDashboardCards))
+	mux.HandleFunc("GET /treasurer/ledger", v(s.handleLedgerRows))
 
-	mux.HandleFunc("GET /treasurer/payments", m(s.handlePayments))
+	mux.HandleFunc("GET /treasurer/payments", v(s.handlePayments))
 	mux.HandleFunc("GET /treasurer/payments/{id}/assign", m(s.handleAssignForm))
 	mux.HandleFunc("POST /treasurer/payments/{id}/assign", m(s.handleAssign))
 	mux.HandleFunc("POST /treasurer/payments/{id}/unassign", m(s.handleUnassign))
@@ -31,13 +32,13 @@ func (s *Server) treasurerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /treasurer/bank-events/{eid}/replay", m(s.handleReplay))
 	mux.HandleFunc("POST /treasurer/payment/{id}/transition", m(s.handleTransition))
 
-	mux.HandleFunc("GET /treasurer/contributions", m(s.handleContributions))
+	mux.HandleFunc("GET /treasurer/contributions", v(s.handleContributions))
 	mux.HandleFunc("POST /treasurer/contributions", m(s.handleContributionCreate))
 	mux.HandleFunc("POST /treasurer/obligations/{id}/payment", m(s.handleObligationPayment))
 	mux.HandleFunc("POST /treasurer/obligations/{id}/paid", m(s.handleObligationPaid))
 	mux.HandleFunc("POST /treasurer/obligations/{id}/cancel", m(s.handleObligationCancel))
 
-	mux.HandleFunc("GET /treasurer/students", m(s.handleStudents))
+	mux.HandleFunc("GET /treasurer/students", v(s.handleStudents))
 	mux.HandleFunc("POST /treasurer/students", m(s.handleStudentAdd))
 	mux.HandleFunc("POST /treasurer/students/merge", m(s.handleStudentMerge))
 	mux.HandleFunc("POST /treasurer/students/{id}/edit", m(s.handleStudentEdit))
@@ -49,6 +50,9 @@ func (s *Server) treasurerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /treasurer/manual-transactions", m(s.handleManualPost))
 	mux.HandleFunc("GET /treasurer/settings", m(s.handleSettings))
 	mux.HandleFunc("POST /treasurer/settings", m(s.handleSettingsSave))
+	mux.HandleFunc("GET /treasurer/members", v(s.handleMembers))
+	mux.HandleFunc("POST /treasurer/members", m(s.handleMemberAdd))
+	mux.HandleFunc("POST /treasurer/members/{uid}/role", m(s.handleMemberRole))
 	mux.HandleFunc("GET /admin/settings", s.needAdmin(func(w http.ResponseWriter, r *http.Request) { s.redirect(w, r, "/treasurer/settings") }))
 }
 
@@ -81,8 +85,12 @@ func friendly(err error) string {
 	switch {
 	case strings.Contains(m, "paid obligation"):
 		return "Nie można anulować opłaconej składki."
-	case strings.Contains(m, "already a treasurer"), strings.Contains(m, "already has a treasurer"):
+	case strings.Contains(m, "already has a treasurer"):
 		return "Ta klasa ma już skarbnika."
+	case strings.Contains(m, "already has a president"):
+		return "Ta klasa ma już przewodniczącego."
+	case strings.Contains(m, "already has a vice_president"):
+		return "Ta klasa ma już wiceprzewodniczącego."
 	case strings.Contains(m, "already paid"):
 		return "Ta składka jest już opłacona."
 	case strings.Contains(m, "different students"):
@@ -584,4 +592,76 @@ func (s *Server) handleSettingsSave(w http.ResponseWriter, r *http.Request) {
 	}
 	s.setFlash(w, r, "success", "Ustawienia zostały zapisane.")
 	s.redirect(w, r, "/treasurer/settings")
+}
+
+// ---- class council ("rada klasowa") ----
+
+var assignableRoles = map[string]bool{store.RoleParent: true, store.RolePresident: true, store.RoleVicePresident: true}
+
+func (s *Server) handleMembers(w http.ResponseWriter, r *http.Request) {
+	members, err := s.Store.Members(r.Context(), s.classID(r))
+	if err != nil {
+		s.fail(w, r, http.StatusInternalServerError, "Nie udało się wczytać członków klasy.")
+		return
+	}
+	p := s.page(r, "Rada klasowa", "members", map[string]any{"Members": members})
+	p.Layout = "layout_treasurer"
+	s.render(w, r, "t_members", p, http.StatusOK)
+}
+
+func (s *Server) handleMemberAdd(w http.ResponseWriter, r *http.Request) {
+	role := r.PostFormValue("role")
+	if !assignableRoles[role] {
+		s.setFlash(w, r, "error", "Wybierz rolę: rodzic, przewodniczący lub wiceprzewodniczący.")
+		s.redirect(w, r, "/treasurer/members")
+		return
+	}
+	u, err := s.ensureParent(r, r.PostFormValue("email"), r.PostFormValue("name"))
+	if err == nil {
+		var cur string
+		if cur, err = s.Store.RoleIn(r.Context(), u, s.classID(r)); err == nil && cur == store.RoleTreasurer {
+			s.setFlash(w, r, "error", "Ta osoba jest skarbnikiem klasy.")
+			s.redirect(w, r, "/treasurer/members")
+			return
+		}
+		if err == nil {
+			err = s.Store.SetMember(r.Context(), s.classID(r), u.ID, role)
+		}
+	}
+	if err != nil {
+		s.flashErr(w, r, "/treasurer/members", err)
+		return
+	}
+	s.setFlash(w, r, "success", "Rola została zapisana.")
+	s.redirect(w, r, "/treasurer/members")
+}
+
+func (s *Server) handleMemberRole(w http.ResponseWriter, r *http.Request) {
+	role := r.PostFormValue("role")
+	uid := pathID(r, "uid")
+	if !assignableRoles[role] {
+		s.setFlash(w, r, "error", "Nieznana rola.")
+		s.redirect(w, r, "/treasurer/members")
+		return
+	}
+	members, _ := s.Store.Members(r.Context(), s.classID(r))
+	for _, m := range members {
+		if m.User.ID != uid {
+			continue
+		}
+		if m.Role == store.RoleTreasurer {
+			s.setFlash(w, r, "error", "Rolę skarbnika zmienia administrator w sekcji „Klasy”.")
+			s.redirect(w, r, "/treasurer/members")
+			return
+		}
+		if err := s.Store.SetMember(r.Context(), s.classID(r), uid, role); err != nil {
+			s.flashErr(w, r, "/treasurer/members", err)
+			return
+		}
+		s.setFlash(w, r, "success", "Rola została zapisana.")
+		s.redirect(w, r, "/treasurer/members")
+		return
+	}
+	s.setFlash(w, r, "error", "Nie znaleziono członka klasy.")
+	s.redirect(w, r, "/treasurer/members")
 }
