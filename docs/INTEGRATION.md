@@ -269,8 +269,14 @@ buttons present; `generation` increased.
 * `make release` / `scripts/release.sh` produce, in `dist/`:
   `classycash_<version>_linux_amd64.tar.gz`, `classycash_<version>_linux_arm64.tar.gz` and `SHA256SUMS`
   (`sha256sum -c SHA256SUMS`). Each tarball contains `classycash` (static), `LICENSE`, `env.example`,
-  `classycash.openrc`. Archives are byte-reproducible (fixed mtimes, sorted entries, no gzip timestamp);
-  verified locally by building twice.
+  `classycash.openrc`. Archives are byte-reproducible with a given `tar` implementation (fixed mtimes, sorted
+  entries, root ownership, `--no-recursion`, no gzip timestamp; GNU tar and bsdtar write different headers, so
+  checksums are only comparable between builds made with the same one — CI uses GNU tar). Each tarball holds
+  exactly one directory and four regular files, **no hard links**; `scripts/release.sh` runs
+  `scripts/check-archive.sh` on every archive (no duplicate entries, no links, expected layout, clean
+  extraction). An early artifact (workflow run `40488020394`) listed every file twice — GNU tar recursed into the
+  directory that the file list already named and stored the second copy as a hard link to itself, which made
+  bsdtar extraction fail; fixed by `--no-recursion`.
 * Container: `deploy/Dockerfile` (Alpine 3.22, non-root, `/data` volume, `HEALTHCHECK` on `/health`).
 * Alpine/OpenRC: [`deploy/openrc/classycash`](../deploy/openrc/classycash) runs `/opt/classycash/classycash`
   as user `classycash` with `/etc/classycash/env`.

@@ -29,5 +29,9 @@ jobs:
         run: CGO_ENABLED=0 go build -trimpath -o /tmp/classycash ./cmd/classycash
       - name: config-check smoke test
         run: CLASSYCASH_ENV=dev /tmp/classycash config-check
+      - name: release script and archive layout
+        run: |
+          VERSION=202601010000 OUT=/tmp/dist sh scripts/release.sh
+          cd /tmp/dist && sha256sum -c SHA256SUMS
       - name: container image builds
         run: docker build -f deploy/Dockerfile -t classycash:ci .

@@ -22,10 +22,13 @@ for ARCH in amd64 arm64; do
   cp LICENSE deploy/env.example "$STAGE/"
   cp deploy/openrc/classycash "$STAGE/classycash.openrc"
   # Deterministic archive: fixed mtimes, sorted entries, numeric root ownership, no gzip timestamp.
+  # --no-recursion is essential: the list already names the directory AND every file in it, and without it
+  # GNU tar archives each file twice (the second time as a hard link to itself, which breaks bsdtar).
   find "$STAGE" -exec touch -t 202601010000 {} +
   if tar --version 2>/dev/null | grep -q GNU; then OWNER="--owner=0 --group=0 --numeric-owner"; else OWNER="--uid 0 --gid 0 --numeric-owner"; fi
-  (cd "$OUT" && find "$NAME" | LC_ALL=C sort | tar $OWNER -cf - -T -) | gzip -n -9 > "$OUT/$NAME.tar.gz"
+  (cd "$OUT" && find "$NAME" | LC_ALL=C sort | tar $OWNER --no-recursion -cf - -T -) | gzip -n -9 > "$OUT/$NAME.tar.gz"
   rm -rf "$STAGE"
+  sh "$(dirname "$0")/check-archive.sh" "$OUT/$NAME.tar.gz"
 done
 (cd "$OUT" && { sha256sum ./*.tar.gz 2>/dev/null || shasum -a 256 ./*.tar.gz; } | sed 's| \./| |' > SHA256SUMS)
 echo "artifacts in $OUT/:"; ls -1 "$OUT"
