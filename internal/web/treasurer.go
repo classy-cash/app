@@ -156,9 +156,13 @@ func (s *Server) handlePayments(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, http.StatusInternalServerError, "Nie udało się wczytać operacji.")
 		return
 	}
-	events, _ := s.Store.BankEvents(r.Context(), "unrecognized", 20)
-	rejected, _ := s.Store.BankEvents(r.Context(), "rejected_sender", 20)
-	events = append(events, rejected...)
+	// Quarantined deliveries are instance-wide (one bank inbox), so only administrators see them.
+	var events []store.BankEvent
+	if state(r).user.IsAdmin {
+		events, _ = s.Store.BankEvents(r.Context(), "unrecognized", 20)
+		rejected, _ := s.Store.BankEvents(r.Context(), "rejected_sender", 20)
+		events = append(events, rejected...)
+	}
 	parsed, _ := s.Store.BankEvents(r.Context(), "parsed", 1)
 	p := s.page(r, "Operacje bankowe", "payments", map[string]any{
 		"Transfers": transfers, "Last": s.Store.LastBankEvent(r.Context()), "Events": events,
@@ -249,6 +253,10 @@ func (s *Server) handleNotifyParent(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleReplay(w http.ResponseWriter, r *http.Request) {
+	if !state(r).user.IsAdmin {
+		s.fail(w, r, http.StatusForbidden, "Ta operacja jest dostępna tylko dla administratora.")
+		return
+	}
 	res, err := s.Store.ReplayEvent(r.Context(), r.PathValue("eid"), alior.Parse)
 	switch {
 	case err != nil:

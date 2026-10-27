@@ -124,7 +124,7 @@ with different titles/codes are never merged.
 **What is parsed.** Only Alior credit notifications: subject must start with `Uznanie rachunku`; account and
 amount come from the subject, sender and title from the body (`Nadawca:` / `Tytuł zlecenia:` followed by
 `<br`). Plain-text bodies work too. A message that is not a recognisable credit is **quarantined** (status
-`unrecognized`, visible to the treasurer, `204` returned) and can be replayed after a parser improvement —
+`unrecognized`, visible to administrators only because the bank inbox is instance-wide, `204` returned) and can be replayed after a parser improvement —
 replay is idempotent. A `body` that is only the HTML/text alternative is fine; the Worker sends
 `parsed.html || parsed.text`.
 

@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"github.com/classy-cash/app/internal/auth"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -168,5 +169,30 @@ func TestTreasurerWorkflowsOverHTTP(t *testing.T) {
 	}
 	if code, _, _ := tr.post("/class/switch", url.Values{"class_id": {"999"}}); code != 303 {
 		t.Fatal(code)
+	}
+}
+
+func TestQuarantinedBankMailIsAdminOnly(t *testing.T) {
+	h := newHarness(t, nil)
+	admin, cls := h.onboarded()
+	ctx := context.Background()
+	if _, err := h.st.IngestBankMail(ctx, store.BankEventIn{ID: strings.Repeat("c9", 32), ReceivedAt: h.st.Now(), Recipient: "r", MailFrom: "m", Subject: "Tajny wyciąg", Body: "x"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, body, _ := admin.get("/treasurer/payments"); !strings.Contains(body, "Tajny wyciąg") {
+		t.Fatal("administrator must see quarantined mail")
+	}
+	hash, _ := auth.HashPassword("password222")
+	u, _ := h.st.CreateUser(ctx, "t2@example.com", "Druga Skarbnik", hash, false)
+	other, _ := h.st.CreateClass(ctx, "5B")
+	_ = h.st.SetMember(ctx, other.ID, u.ID, store.RoleTreasurer)
+	_ = cls
+	tr2 := h.client()
+	tr2.login("t2@example.com", "password222")
+	if _, body, _ := tr2.get("/treasurer/payments"); strings.Contains(body, "Tajny wyciąg") {
+		t.Fatal("another class's treasurer must not see the shared bank inbox")
+	}
+	if code, _, _ := tr2.post("/treasurer/bank-events/"+strings.Repeat("c9", 32)+"/replay", url.Values{}); code != 403 {
+		t.Fatalf("replay by non-admin: %d", code)
 	}
 }
