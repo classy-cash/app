@@ -1,5 +1,6 @@
 # Classy Cash (Go). The legacy PHP sources remain in the tree as the parity reference.
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+# Legacy scheme: UTC build time as YYYYMMDDHHMM ("YmdHi"); override with VERSION=... for reproducible rebuilds.
+VERSION ?= $(shell date -u +%Y%m%d%H%M)
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 DATE    ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 PKG      = github.com/classy-cash/app/internal/version

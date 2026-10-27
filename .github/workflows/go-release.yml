@@ -7,8 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version, e.g. 1.0.0 (no tag is created)'
-        required: true
+        description: 'Release version YYYYMMDDHHMM (UTC build time). Empty = now. No tag is created.'
+        required: false
+        default: ''
         type: string
 
 permissions:
@@ -27,11 +28,14 @@ jobs:
       - name: build artifacts
         env:
           VERSION: ${{ inputs.version }}
-        run: sh scripts/release.sh
+        run: |
+          [ -n "$VERSION" ] || VERSION=$(date -u +%Y%m%d%H%M)
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          VERSION=$VERSION sh scripts/release.sh
       - name: verify checksums
         run: cd dist && sha256sum -c SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
-          name: classycash-${{ inputs.version }}
+          name: classycash-${{ env.VERSION }}
           path: dist/
           if-no-files-found: error

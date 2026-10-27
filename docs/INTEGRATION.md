@@ -243,7 +243,11 @@ buttons present; `generation` increased.
 
 ## 7. Release artifacts and upgrades
 
-* `make release VERSION=x.y.z` / `scripts/release.sh` produce, in `dist/`:
+* **Versioning keeps the legacy PHP scheme**: the version is the UTC build time `YYYYMMDDHHMM` (e.g.
+  `202610271430`), injected with `-ldflags` and shown in the UI as "Wersja z 15:30, 27 paź" (installation time
+  zone). `make release` / `scripts/release.sh` default to the current time; pass `VERSION=…` to rebuild an existing
+  release byte-for-byte. Local builds report `dev`. Config compatibility is tracked separately by `CONFIG_VERSION`.
+* `make release` / `scripts/release.sh` produce, in `dist/`:
   `classycash_<version>_linux_amd64.tar.gz`, `classycash_<version>_linux_arm64.tar.gz` and `SHA256SUMS`
   (`sha256sum -c SHA256SUMS`). Each tarball contains `classycash` (static), `LICENSE`, `env.example`,
   `classycash.openrc`. Archives are byte-reproducible (fixed mtimes, sorted entries, no gzip timestamp);

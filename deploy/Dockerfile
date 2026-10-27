@@ -1,5 +1,6 @@
 # Classy Cash — minimal container (pure Go, CGO-free, SQLite embedded).
-# Build from the repository root:  docker build -f deploy/Dockerfile -t classycash:dev .
+# Build from the repository root:
+#   docker build -f deploy/Dockerfile --build-arg VERSION=$(date -u +%Y%m%d%H%M) -t classycash:dev .
 FROM golang:1.26-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./

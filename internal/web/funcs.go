@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/classy-cash/app/internal/money"
+	"github.com/classy-cash/app/internal/version"
 )
 
 func (s *Server) funcs() template.FuncMap {
@@ -57,10 +58,11 @@ func (s *Server) funcs() template.FuncMap {
 			}
 			return *t
 		},
-		"eqid":  func(a int64, b *int64) bool { return b != nil && *b == a },
-		"lower": strings.ToLower,
-		"month": func(t time.Time) string { return polishMonths[t.In(loc).Month()-1] },
-		"now":   time.Now,
+		"eqid":    func(a int64, b *int64) bool { return b != nil && *b == a },
+		"lower":   strings.ToLower,
+		"release": func() string { return version.Label(loc) },
+		"month":   func(t time.Time) string { return polishMonths[t.In(loc).Month()-1] },
+		"now":     time.Now,
 		"pct": func(n, d int) int {
 			if d == 0 {
 				return 0

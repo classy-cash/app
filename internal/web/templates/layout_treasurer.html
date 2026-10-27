@@ -36,6 +36,7 @@
     <div class="avatar" aria-hidden="true">{{initial .User.Name}}</div>
     <div><p class="user-name">{{.User.Name}}</p><p class="user-role">{{if .User.IsAdmin}}Administrator{{else}}Skarbnik{{end}}</p></div>
     <form method="post" action="/logout">{{template "csrf" .CSRF}}<button class="link-btn danger" type="submit">Wyloguj się</button></form>
+    <p class="small muted version">{{release}}</p>
   </div>
 </aside>
 <div class="sidebar-backdrop" data-toggle-sidebar hidden></div>

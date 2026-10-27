@@ -27,7 +27,7 @@ Open `/onboarding` to claim the instance (administrator + class). Production nee
 make build                     # bin/classycash (static, CGO-free)
 bin/classycash config-check    # validate the environment
 bin/classycash backup out.db   # consistent, verified SQLite backup
-make release VERSION=1.0.0     # dist/*.tar.gz + SHA256SUMS (linux amd64/arm64)
+make release                  # dist/*.tar.gz + SHA256SUMS (linux amd64/arm64)
 make docker                    # 36 MB Alpine image
 ```
 

@@ -139,7 +139,7 @@ details.manage summary{cursor:pointer;font-weight:600;color:var(--primary);min-h
 .nav-group{font-size:.65rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted-text);padding:var(--sp-4) var(--sp-4) var(--sp-2)}
 .ico{width:20px;text-align:center}
 .sidebar-user{border-top:1px solid var(--border);padding-top:var(--sp-4);display:grid;grid-template-columns:auto 1fr;gap:var(--sp-3);align-items:center}
-.sidebar-user form{grid-column:1/-1}
+.sidebar-user form,.sidebar-user .version{grid-column:1/-1}
 .user-name{font-size:.85rem;font-weight:700;color:var(--primary);word-break:break-all}.user-role{font-size:.65rem;font-weight:800;text-transform:uppercase;color:var(--muted-text)}
 .content{margin-left:256px;padding:var(--sp-6);max-width:1120px+256px}
 .content>*{max-width:1120px}

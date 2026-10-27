@@ -2,9 +2,11 @@
 # Build reproducible release artifacts into dist/:
 #   classycash_<version>_linux_<arch>.tar.gz   (binary, LICENSE, env.example, openrc script)
 #   SHA256SUMS                                  (verify with: sha256sum -c SHA256SUMS)
-# Usage: VERSION=1.2.3 sh scripts/release.sh
+# Usage: sh scripts/release.sh            (version = current UTC time, e.g. 202610271430)
+#        VERSION=202610271430 sh scripts/release.sh
 set -eu
-VERSION="${VERSION:?set VERSION}"
+# Legacy scheme: UTC build time YYYYMMDDHHMM. Pass VERSION to rebuild an existing release byte-for-byte.
+VERSION="${VERSION:-$(date -u +%Y%m%d%H%M)}"
 COMMIT="${COMMIT:-$(git rev-parse --short HEAD 2>/dev/null || echo unknown)}"
 DATE="${DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
 PKG=github.com/classy-cash/app/internal/version
