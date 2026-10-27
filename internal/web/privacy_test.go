@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/classy-cash/app/internal/store"
 )
@@ -93,5 +94,67 @@ func TestTreasurerAndDemoCannotEraseThroughTheForm(t *testing.T) {
 	}
 	if _, body, _ := tr.get("/parent"); body == "" {
 		t.Fatal("the treasurer stays signed in after the refusal")
+	}
+}
+
+// An administrator who tested the bank pipeline can download the reference and later erase the account; the
+// reference stays (and keeps swallowing notifications) but no longer names them.
+func TestAdminExportsAndErasesAccountWithBankTestReference(t *testing.T) {
+	h := newHarness(t, nil)
+	tr, cls := h.onboarded()
+	ctx := context.Background()
+	anna, kid := h.parent("anna@example.com", "Anna Kowalska", cls, "Jan", "Kowalski")
+	h.st.CreateContribution(ctx, cls.ID, "Wycieczka", 100, nil, []int64{kid.ID})
+	pay, _ := h.st.CreateFastPayment(ctx, anna, cls.ID, nil)
+	if _, err := h.st.CreateUser(ctx, "admin2@example.com", "Adam Admin", mustHash(t, "adminpass22"), true); err != nil {
+		t.Fatal(err)
+	}
+	adm := h.client()
+	adm.login("admin2@example.com", "adminpass22")
+	if code, _, _ := adm.post("/treasurer/settings/bank-tests", url.Values{"amount_pln": {"1,00"}}); code != 303 {
+		t.Fatal(code)
+	}
+	tests, _ := h.st.BankTests(ctx, cls.ID, 5)
+	if len(tests) != 1 || tests[0].CreatedByName != "Adam Admin" {
+		t.Fatalf("%+v", tests)
+	}
+	bt := tests[0]
+
+	_, body, hd := adm.get("/profile/export")
+	var ex store.UserExport
+	if err := json.Unmarshal([]byte(body), &ex); err != nil || hd.Get("Cache-Control") != "no-store" {
+		t.Fatalf("export: %v %v", err, hd)
+	}
+	if len(ex.BankTests) != 1 || ex.BankTests[0].Reference != bt.Title() || ex.BankTests[0].Status != store.BankTestPending {
+		t.Fatalf("export lacks the reference: %+v", ex.BankTests)
+	}
+	// The treasurer's own export does not contain it.
+	if _, tb, _ := tr.get("/profile/export"); strings.Contains(tb, bt.Title()) {
+		t.Fatal("another person's reference leaked")
+	}
+
+	if code, _, _ := adm.post("/profile/delete", url.Values{"confirm": {"USUŃ"}, "current": {"adminpass22"}}); code != 303 {
+		t.Fatal(code)
+	}
+	if got, _ := h.st.BankTestByID(ctx, cls.ID, bt.ID); got.CreatedByName != "" || got.Marker != bt.Marker || got.Stored != "pending" {
+		t.Fatalf("erasure must anonymise, not remove: %+v", got)
+	}
+	_, page, _ := tr.get("/treasurer/settings")
+	if !strings.Contains(page, bt.Title()) || strings.Contains(page, "Adam Admin") {
+		t.Fatal("the reference stays visible to the treasurer without the erased person's name")
+	}
+
+	// Still safe: the notification arrives with a live payment code and books nothing; the test completes.
+	if code := h.webhook(hexID('f'), pay.Code+" "+bt.Title(), "1,00"); code != 204 {
+		t.Fatal(code)
+	}
+	if got, _ := h.st.PaymentByID(ctx, cls.ID, pay.ID); got.Status != store.PaymentPending {
+		t.Fatal("an anonymised diagnostic settled a payment")
+	}
+	if ts, _ := h.st.Transfers(ctx, cls.ID); len(ts) != 0 {
+		t.Fatal("an anonymised diagnostic became a transfer")
+	}
+	if got, _ := h.st.BankTestByID(ctx, cls.ID, bt.ID); got.State(time.Now()) != store.BankTestSuccess {
+		t.Fatalf("the reference must still complete: %+v", got)
 	}
 }

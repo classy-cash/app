@@ -1,6 +1,8 @@
 package store
 
 import (
+	"database/sql"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -112,5 +114,92 @@ func TestEraseRefusesTreasurerAndLastAdmin(t *testing.T) {
 	_, _ = f.s.DB.ExecContext(f.ctx, `UPDATE users SET is_admin = 1 WHERE id = ?`, only.ID)
 	if err := f.s.EraseUser(f.ctx, only.ID); !errors.Is(err, ErrLastAdmin) {
 		t.Fatalf("last admin: %v", err)
+	}
+}
+
+// A second administrator (not a treasurer) who ran a bank-pipeline test: their export lists it, and erasure cuts
+// the link to the person while the reference keeps swallowing notifications.
+func TestExportAndEraseCoverBankTestReferences(t *testing.T) {
+	f := newFixture(t)
+	admin, err := f.s.CreateUser(f.ctx, "admin2@example.com", "Adam Admin", "", true)
+	f.must(err)
+	mine, err := f.s.CreateBankTest(f.ctx, f.class.ID, admin, 200)
+	f.must(err)
+	theirs := f.bankTest(300) // created by the treasurer
+	f.deliver(evid(1), mine.Title(), "2,00", true)
+
+	ex, err := f.s.ExportUser(f.ctx, admin.ID)
+	f.must(err)
+	if len(ex.BankTests) != 1 {
+		t.Fatalf("export must list exactly the person's own references: %+v", ex.BankTests)
+	}
+	e := ex.BankTests[0]
+	if e.Reference != mine.Title() || e.Class != "4A" || e.ExpectedPLN != "2.00" || e.Status != BankTestSuccess || e.Hits != 1 ||
+		e.ObservedAt == nil || e.ObservedPLN == nil || *e.ObservedPLN != "2.00" {
+		t.Fatalf("export entry %+v", e)
+	}
+	if blob, _ := json.Marshal(ex); strings.Contains(string(blob), theirs.Title()) {
+		t.Fatal("another person's reference leaked into the export")
+	}
+	if none, _ := f.s.ExportUser(f.ctx, f.parent.ID); none.BankTests == nil || len(none.BankTests) != 0 {
+		t.Fatalf("a person with none gets an empty list, not null: %#v", none.BankTests)
+	}
+
+	before := f.accounting()
+	f.must(f.s.EraseUser(f.ctx, admin.ID))
+	f.must(f.s.EraseUser(f.ctx, admin.ID)) // idempotent
+
+	got, err := f.s.BankTestByID(f.ctx, f.class.ID, mine.ID)
+	f.must(err)
+	if got.CreatedByName != "" {
+		t.Fatalf("the erased person is still named: %q", got.CreatedByName)
+	}
+	if got.Marker != mine.Marker || got.Stored != "success" || got.Hits != 1 || got.ExpectedMinor != 200 || got.EventID != evid(1) {
+		t.Fatalf("erasure must keep the reference intact: %+v", got)
+	}
+	var by sql.NullInt64
+	f.must(f.s.DB.QueryRowContext(f.ctx, `SELECT created_by FROM bank_tests WHERE id = ?`, mine.ID).Scan(&by))
+	if by.Valid {
+		t.Fatal("created_by must be cleared")
+	}
+	if kept, _ := f.s.BankTestByID(f.ctx, f.class.ID, theirs.ID); kept.CreatedByName != "Teresa Skarbnik" {
+		t.Fatalf("someone else's reference was touched: %+v", kept)
+	}
+	if after, _ := f.s.ExportUser(f.ctx, admin.ID); len(after.BankTests) != 0 {
+		t.Fatal("an erased account owns no references any more")
+	}
+
+	// Safety is unchanged: a repeat, and a notification for the other still-open reference, are swallowed.
+	f.contribution(f.class.ID, "Wycieczka", 100, f.kid)
+	p, _ := f.s.CreateFastPayment(f.ctx, f.parent, f.class.ID, nil)
+	before = f.accounting()
+	if res := f.deliver(evid(2), p.Code+" "+mine.Title(), "1,00", true); res.Outcome != OutcomeTest {
+		t.Fatalf("an anonymised reference must still be swallowed: %+v", res)
+	}
+	if after := f.accounting(); after != before {
+		t.Fatalf("accounting changed after erasure: %+v -> %+v", before, after)
+	}
+	if pay, _ := f.s.PaymentByID(f.ctx, f.class.ID, p.ID); pay.Status != PaymentPending {
+		t.Fatal("payment settled by an anonymised diagnostic")
+	}
+	if g, _ := f.s.BankTestByID(f.ctx, f.class.ID, mine.ID); g.Hits != 2 {
+		t.Fatalf("hits %d", g.Hits)
+	}
+	// New references still get fresh markers.
+	open, err := f.s.CreateBankTest(f.ctx, f.class.ID, f.treas, 100)
+	f.must(err)
+	if open.Marker == mine.Marker {
+		t.Fatal("marker reused")
+	}
+}
+
+func TestEraseBlockedForTreasurerKeepsTheirReferences(t *testing.T) {
+	f := newFixture(t)
+	bt := f.bankTest(100)
+	if err := f.s.EraseUser(f.ctx, f.treas.ID); !errors.Is(err, ErrIsTreasurer) {
+		t.Fatal(err)
+	}
+	if got, _ := f.s.BankTestByID(f.ctx, f.class.ID, bt.ID); got.CreatedByName != "Teresa Skarbnik" {
+		t.Fatalf("a refused erasure must change nothing: %+v", got)
 	}
 }

@@ -63,7 +63,10 @@ membership and the default settings in one transaction.
   obligations and the ledger stay because they are the class's accounting records, but no longer identify the
   person. Children stay on the class roster (the treasurer controls that data). A treasurer or the last
   administrator must be replaced first (the command refuses). Bank-transfer sender names, which come from the
-  bank's notification, are accounting data and are not touched. Disabled in demo mode.
+  bank's notification, are accounting data and are not touched. Bank-pipeline test references the person created
+  (§3) appear in their export as `bank_test_references`; erasure clears the link to the person but keeps the
+  reference itself (marker, status, counters), so a notification that still arrives is swallowed as before.
+  Disabled in demo mode.
 * Graceful shutdown on `SIGTERM`/`SIGINT` (20 s drain, WAL checkpoint).
 * **Endpoints for supervisors**
   * `GET /health` (alias `/ping`) → `200 ok`: liveness, touches nothing.

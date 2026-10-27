@@ -30,6 +30,7 @@ type UserExport struct {
 	Memberships []ExportMembership `json:"memberships"`
 	Children    []ExportChild      `json:"children"`
 	Payments    []ExportPayment    `json:"payments"`
+	BankTests   []ExportBankTest   `json:"bank_test_references"`
 	Mail        []ExportMail       `json:"mail_sent_to_you"`
 }
 
@@ -77,6 +78,19 @@ type ExportPayment struct {
 	PaidAt    *time.Time `json:"paid_at"`
 }
 
+// ExportBankTest is a bank-pipeline diagnostic reference the person created (never a payment).
+type ExportBankTest struct {
+	Class       string     `json:"class"`
+	Reference   string     `json:"reference"`
+	ExpectedPLN string     `json:"expected_amount_pln"`
+	Status      string     `json:"status"`
+	CreatedAt   time.Time  `json:"created_at"`
+	ExpiresAt   time.Time  `json:"expires_at"`
+	ObservedAt  *time.Time `json:"notification_received_at"`
+	ObservedPLN *string    `json:"notification_amount_pln"`
+	Hits        int        `json:"notifications_with_reference"`
+}
+
 // ExportMail lists messages by subject only; bodies are not part of the export.
 type ExportMail struct {
 	Subject   string    `json:"subject"`
@@ -93,7 +107,7 @@ func (s *Store) ExportUser(ctx context.Context, userID int64) (UserExport, error
 		return UserExport{}, err
 	}
 	ex := UserExport{ExportedAt: s.Now(), Profile: ExportProfile{ID: u.ID, Email: u.Email, Name: u.Name, Phone: u.Phone, Administrator: u.IsAdmin, CreatedAt: u.CreatedAt, ConfirmedAt: u.ConfirmedAt},
-		Memberships: []ExportMembership{}, Children: []ExportChild{}, Payments: []ExportPayment{}, Mail: []ExportMail{}}
+		Memberships: []ExportMembership{}, Children: []ExportChild{}, Payments: []ExportPayment{}, BankTests: []ExportBankTest{}, Mail: []ExportMail{}}
 
 	rows, err := s.DB.QueryContext(ctx, `SELECT c.name, m.role FROM memberships m JOIN classes c ON c.id = m.class_id WHERE m.user_id = ? ORDER BY c.id`, userID)
 	if err != nil {
@@ -167,6 +181,32 @@ func (s *Store) ExportUser(ctx context.Context, userID int64) (UserExport, error
 	}
 	prows.Close()
 
+	brows, err := s.DB.QueryContext(ctx, `SELECT `+bankTestCols+`, c.name FROM bank_tests t JOIN classes c ON c.id = t.class_id LEFT JOIN users u ON u.id = t.created_by WHERE t.created_by = ? ORDER BY t.id`, userID)
+	if err != nil {
+		return ex, err
+	}
+	for brows.Next() {
+		var bt BankTest
+		var created, expires string
+		var cancelled, observed sql.NullString
+		var obsMinor sql.NullInt64
+		var parsed int
+		var class string
+		if err := brows.Scan(&bt.ID, &bt.ClassID, &bt.Marker, &bt.ExpectedMinor, &bt.Stored, &created, &expires, &cancelled, &bt.CreatedByName, &bt.EventID, &observed, &obsMinor, &parsed, &bt.Hits, &class); err != nil {
+			brows.Close()
+			return ex, err
+		}
+		bt.CreatedAt, bt.ExpiresAt = parseTime(created), parseTime(expires)
+		e := ExportBankTest{Class: class, Reference: bt.Title(), ExpectedPLN: plain(bt.ExpectedMinor), Status: bt.State(s.Now()),
+			CreatedAt: bt.CreatedAt, ExpiresAt: bt.ExpiresAt, ObservedAt: parseNullTime(observed), Hits: bt.Hits}
+		if obsMinor.Valid {
+			v := plain(obsMinor.Int64)
+			e.ObservedPLN = &v
+		}
+		ex.BankTests = append(ex.BankTests, e)
+	}
+	brows.Close()
+
 	mrows, err := s.DB.QueryContext(ctx, `SELECT subject, status, created_at FROM outbox WHERE to_email = ? COLLATE NOCASE ORDER BY id`, u.Email)
 	if err != nil {
 		return ex, err
@@ -224,6 +264,11 @@ func (s *Store) EraseUser(ctx context.Context, userID int64) error {
 			if _, err := tx.ExecContext(ctx, q, userID); err != nil {
 				return err
 			}
+		}
+		// Diagnostic references stay (marker, status, hits) so a notification that still arrives is swallowed; only
+		// the link to the person goes.
+		if _, err := tx.ExecContext(ctx, `UPDATE bank_tests SET created_by = NULL WHERE created_by = ?`, userID); err != nil {
+			return err
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM outbox WHERE to_email = ? COLLATE NOCASE`, u.Email); err != nil {
 			return err
