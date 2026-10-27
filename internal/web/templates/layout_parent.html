@@ -7,6 +7,7 @@
   <main id="main" class="parent-main">
     {{template "flashes" .}}
     {{template "content" .}}
+    {{template "site_credit"}}
   </main>
   <nav class="bottom-nav" aria-label="Menu rodzica">
     <a class="bn {{if eq .Active "home"}}active{{end}}" href="/" {{if eq .Active "home"}}aria-current="page"{{end}}><span class="bn-ico" aria-hidden="true">⌂</span><span>Start</span></a>

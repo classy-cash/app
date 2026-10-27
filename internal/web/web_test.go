@@ -629,3 +629,44 @@ func TestWebmailDetection(t *testing.T) {
 		t.Fatal("a failed lookup must degrade to the generic hint")
 	}
 }
+
+const creditLink = `href="https://mleczakm.github.io/platnosci-blik/"`
+
+// Every layout carries the author credit, in normal and demo mode alike.
+func TestSiteCreditOnEveryLayout(t *testing.T) {
+	h := newHarness(t, nil)
+	tr, _ := h.onboarded()
+	for _, p := range []string{"/treasurer/dashboard", "/parent", "/profile", "/no-such-page"} {
+		if _, body, _ := tr.get(p); strings.Count(body, creditLink) != 1 {
+			t.Errorf("%s: want exactly one author credit link", p)
+		}
+	}
+	if _, body, _ := h.client().get("/login"); strings.Count(body, creditLink) != 1 || !strings.Contains(body, `rel="noopener"`) {
+		t.Error("login: author credit missing")
+	}
+
+	d := newHarness(t, func(c *config.Config) {
+		c.Demo = true
+		c.Mail.Driver, c.Mail.RelayURL, c.Mail.RelayKey = "capture", "", ""
+		c.Bank.Secret, c.Bank.Address = "", ""
+	})
+	seed := `INSERT INTO users (id,email,name,password_hash,is_admin,created_at,confirmed_at) VALUES (1,'skarbnik@example.test','Demo Skarbnik','',1,'2026-10-27T10:00:00Z','2026-10-27T10:00:00Z');
+INSERT INTO classes (id,name,blik_phone,created_at) VALUES (1,'Demo 4A','+48 000 000 000','2026-10-27T10:00:00Z');
+INSERT INTO memberships (user_id,class_id,role) VALUES (1,1,'treasurer');
+INSERT INTO settings (key,value) VALUES ('demo_accounts','[{"label":"Skarbnik","email":"skarbnik@example.test","role":"skarbnik"}]');`
+	if _, err := d.st.DemoLoad(context.Background(), seed); err != nil {
+		t.Fatal(err)
+	}
+	c := d.client()
+	if _, body, _ := c.get("/login"); !strings.Contains(body, "Tryb demo") || strings.Count(body, creditLink) != 1 {
+		t.Error("demo login: banner and author credit expected")
+	}
+	if code, _, _ := c.post("/demo/login", url.Values{"email": {"skarbnik@example.test"}}); code != 303 {
+		t.Fatalf("demo login: %d", code)
+	}
+	for _, p := range []string{"/treasurer/dashboard", "/parent"} {
+		if _, body, _ := c.get(p); strings.Count(body, creditLink) != 1 {
+			t.Errorf("demo %s: want exactly one author credit link", p)
+		}
+	}
+}

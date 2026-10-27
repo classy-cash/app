@@ -29,6 +29,8 @@
 
 {{define "csrf"}}<input type="hidden" name="_csrf" value="{{.}}">{{end}}
 
+{{define "site_credit"}}<footer class="site-credit">Aplikację wykonał <a href="https://mleczakm.github.io/platnosci-blik/" rel="noopener" target="_blank">Michał Mleczko</a> — strony z płatnościami BLIK bez operatora płatności i bez abonamentu.</footer>{{end}}
+
 {{define "scripts"}}<script src="/assets/app/app.js?v={{.Version}}" defer></script>{{end}}
 
 {{define "fielderr"}}{{if .}}<p class="field-error" role="alert">{{.}}</p>{{end}}{{end}}
