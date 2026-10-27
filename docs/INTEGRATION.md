@@ -331,11 +331,30 @@ buttons present; `generation` increased.
 * Container: `deploy/Dockerfile` (Alpine 3.22, non-root, `/data` volume, `HEALTHCHECK` on `/health`).
 * Alpine/OpenRC: [`deploy/openrc/classycash`](../deploy/openrc/classycash) runs `/opt/classycash/classycash`
   as user `classycash` with `/etc/classycash/env`.
-* GitHub: `Go CI` runs on pushes/PRs. `Go release artifacts` is **manual**, uploads the files as workflow
-  artifacts and **never creates a tag or release**. With `publish_image` it also pushes a multi-arch image
+* GitHub: `Go CI` runs on pushes/PRs. `Go release artifacts` is **manual** and, unless asked, uploads the files
+  only as workflow artifacts (they expire) and creates no tag or release. With `publish_release` it additionally
+  creates the durable private GitHub Release described below. With `publish_image` it also pushes a multi-arch image
   `ghcr.io/classy-cash/classycash:<version>` (private package; no `latest` tag, pin the version; the legacy PHP
   image lives under `ghcr.io/classy-cash/app` and is not touched). Nothing has been published yet — the first
   publish is a deliberate act of the release owner.
+* **Release publication contract** (consumed by the per-instance FROG installer in `classy-cash/infrastructure`,
+  `templates/instance`). Instances never build the app and never read workflow artifacts, which expire. A release
+  is published by running `Go release artifacts` manually with `publish_release` on `main`; the `release` job
+  (the only one with `contents: write`) then:
+  * creates the tag `v<version>` at the built commit and a GitHub Release of the same name in this private
+    repository, marked "not latest", with exactly three assets: `classycash_<version>_linux_amd64.tar.gz`,
+    `classycash_<version>_linux_arm64.tar.gz` and `SHA256SUMS`;
+  * refuses to run when the tag or release already exists. **A published version is immutable**: never delete,
+    re-upload or move it; fix forward with a new version. Deleting a release breaks every instance still pinned
+    to it (they keep running, but cannot install or roll back to it);
+  * does not sign anything. Authenticity of an instance's binary rests on the SHA-256 that the control plane
+    pins in the instance repository's `release.json`, taken from this `SHA256SUMS`; the instance verifies the
+    download against that pin and the archive layout before touching the host, and verifies the checksum again
+    on the server;
+  * the tag push triggers no workflow (the legacy PHP deploy is disabled, see below).
+  Instances download with a fine-grained read-only token limited to this repository (`Contents: read`), only
+  when the pinned version differs from the installed one. Weekly maintenance without a pending upgrade needs no
+  token. Retention: keep every version that any instance is still pinned to.
 * **Legacy PHP workflows are neutralised** (they used to deploy the old app on every pushed tag over the shared
   hostname and secrets, and the QA workflow could create such a tag from `master`): `production-build-and-deploy.yml`
   is now `workflow_dispatch` only and does nothing unless the typed confirmation `deploy-legacy-php` is supplied;

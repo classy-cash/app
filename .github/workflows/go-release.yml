@@ -1,17 +1,24 @@
 name: Go release artifacts
 
-# Manual only. This workflow never creates a git tag or a GitHub release; the artifacts are attached to this
-# workflow run. With publish_image it also pushes a multi-arch container image to GHCR under a name of its own
+# Manual only. By default this workflow creates no git tag and no GitHub release; the artifacts are attached to
+# this workflow run (and expire with it). With publish_release it also creates the durable, private GitHub
+# Release v<version> in this repository, from which per-instance FROG installers fetch the archives (contract:
+# docs/INTEGRATION.md, "Release publication contract"). With publish_image it also pushes a multi-arch container image to GHCR under a name of its own
 # (ghcr.io/<owner>/classycash:<version>, never ":latest"), distinct from the legacy PHP image
 # (ghcr.io/<owner>/app). The legacy tag-triggered deploy is disabled (see docs/INTEGRATION.md, "Release artifacts").
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version YYYYMMDDHHMM (UTC build time). Empty = now. No tag is created.'
+        description: 'Release version YYYYMMDDHHMM (UTC build time). Empty = now.'
         required: false
         default: ''
         type: string
+      publish_release:
+        description: 'Also create the private GitHub Release v<version> (tag at this commit) with both archives and SHA256SUMS'
+        required: false
+        default: false
+        type: boolean
       publish_image:
         description: 'Also build and push ghcr.io/<owner>/classycash:<version> (linux/amd64, linux/arm64)'
         required: false
@@ -24,6 +31,8 @@ permissions:
 jobs:
   artifacts:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     permissions:
       contents: read
       packages: write
@@ -35,11 +44,14 @@ jobs:
       - name: tests
         run: go test -race -count=1 ./...
       - name: build artifacts
+        id: version
         env:
           VERSION: ${{ inputs.version }}
         run: |
           [ -n "$VERSION" ] || VERSION=$(date -u +%Y%m%d%H%M)
+          printf '%s' "$VERSION" | grep -Eq '^[0-9]{12}$' || { echo "version must be YYYYMMDDHHMM" >&2; exit 1; }
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           VERSION=$VERSION sh scripts/release.sh
       - name: verify checksums
         run: cd dist && sha256sum -c SHA256SUMS
@@ -76,3 +88,34 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.version=${{ env.VERSION }}
+
+  release:
+    # Durable distribution for instance installers. Separate job so that only this job holds contents: write,
+    # and only when explicitly requested. Refuses to touch an existing tag or release: a published version is
+    # immutable (publish a new version instead).
+    if: ${{ inputs.publish_release }}
+    needs: artifacts
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.artifacts.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: classycash-${{ needs.artifacts.outputs.version }}
+          path: dist
+      - name: verify checksums
+        run: cd dist && sha256sum -c SHA256SUMS
+      - name: create release
+        run: |
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 ||
+             gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$VERSION" >/dev/null 2>&1; then
+            echo "v$VERSION already exists; a published version is never replaced" >&2
+            exit 1
+          fi
+          gh release create "v$VERSION" dist/classycash_"$VERSION"_linux_amd64.tar.gz dist/classycash_"$VERSION"_linux_arm64.tar.gz dist/SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Classy Cash $VERSION" \
+            --notes "Build $VERSION of $GITHUB_SHA. Verify with: sha256sum -c SHA256SUMS. Archives are checksummed, not signed." \
+            --latest=false
