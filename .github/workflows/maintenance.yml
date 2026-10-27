@@ -3,9 +3,9 @@ name: Enable Maintenance Mode
 # Manual only. Replaces the running production container with a static "technical break"
 # page. Needs the SSH key, host details and the Cloudflare/Cytrus routing secrets (the same
 # DNS/domain step as a regular deploy), but no image build or registry login, no .env and
-# no database. To leave maintenance mode, re-run the latest "Production Build and Deploy"
-# workflow run (a regular deploy replaces the placeholder). Do not push a release tag
-# meanwhile: every tag deploys the application again.
+# no database. To leave maintenance mode, deploy the application again with whatever deployment
+# pipeline owns production (for the Go app: docs/INTEGRATION.md; for the old PHP stack: the manual
+# "Legacy PHP Production Build and Deploy"). Pushing a tag no longer deploys anything.
 on:
   workflow_dispatch:
     inputs:

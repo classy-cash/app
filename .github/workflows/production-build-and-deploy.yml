@@ -1,9 +1,18 @@
-name: Production Build and Deploy
+name: Legacy PHP Production Build and Deploy (manual only)
 
+# DISABLED FOR TAGS. This workflow used to run on EVERY pushed tag. The application is now the Go rewrite
+# (cmd/classycash, deploy/Dockerfile); a tag must never rebuild the old PHP image and redeploy it over the
+# production host with the shared hostname and secrets. It now runs only when a person starts it by hand AND
+# types the confirmation phrase, and it is kept only so the old stack can be redeployed deliberately.
+# Releases of the Go app: .github/workflows/go-release.yml and docs/INTEGRATION.md ("Release artifacts").
 on:
-  push:
-    tags:
-      - '*'
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy-legacy-php" to build the OLD PHP app and deploy it over production'
+        required: true
+        default: ''
+        type: string
 
 env:
   REGISTRY: ghcr.io
@@ -11,6 +20,7 @@ env:
 
 jobs:
   build-and-deploy:
+    if: ${{ inputs.confirm == 'deploy-legacy-php' }}
     environment: production
     runs-on: ubuntu-latest
 

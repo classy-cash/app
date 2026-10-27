@@ -269,10 +269,17 @@ buttons present; `generation` increased.
 * Container: `deploy/Dockerfile` (Alpine 3.22, non-root, `/data` volume, `HEALTHCHECK` on `/health`).
 * Alpine/OpenRC: [`deploy/openrc/classycash`](../deploy/openrc/classycash) runs `/opt/classycash/classycash`
   as user `classycash` with `/etc/classycash/env`.
-* GitHub: `Go CI` runs on pushes/PRs. `Go release artifacts` is **manual** and uploads the files as workflow
-  artifacts. ⚠ **It deliberately never creates a tag or release**: the legacy PHP workflow
-  `.github/workflows/production-build-and-deploy.yml` runs on *every* pushed tag and would try to deploy the old
-  application. Disable or retarget that workflow before the first Go release tag.
+* GitHub: `Go CI` runs on pushes/PRs. `Go release artifacts` is **manual**, uploads the files as workflow
+  artifacts and **never creates a tag or release**. With `publish_image` it also pushes a multi-arch image
+  `ghcr.io/classy-cash/classycash:<version>` (private package; no `latest` tag, pin the version; the legacy PHP
+  image lives under `ghcr.io/classy-cash/app` and is not touched). Nothing has been published yet — the first
+  publish is a deliberate act of the release owner.
+* **Legacy PHP workflows are neutralised** (they used to deploy the old app on every pushed tag over the shared
+  hostname and secrets, and the QA workflow could create such a tag from `master`): `production-build-and-deploy.yml`
+  is now `workflow_dispatch` only and does nothing unless the typed confirmation `deploy-legacy-php` is supplied;
+  `build-and-qa.yml` runs only for pull requests that touch the PHP sources, no longer pushes images, creates
+  releases/tags or force-pushes a coverage branch. Pushing a tag is therefore safe; it deploys nothing.
+  `maintenance.yml` is unchanged (manual) and still belongs to the old PHP/Mikrus host.
 * Upgrade procedure for the deployment layer: `classycash backup` → replace the binary → restart (migrations
   run at start-up; `/ready` is `503` until they finish) → check `/ready` and `/version`. Binary rollback is safe
   only while the schema is unchanged; otherwise restore the pre-upgrade backup. The bank address, secrets,
