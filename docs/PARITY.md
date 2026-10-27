@@ -16,6 +16,7 @@ tests to the Go rewrite and lists every **deliberate** difference. "Tested" name
 | Profile | `profile.html.twig` | `/profile` (name, phone, password) | `TestEveryTreasurerPageRenders` |
 | First-sign-in notice to administrators | `UserLoginSubscriber`, `NewUserHandler` | `store.ConfirmUser` queues one mail per administrator (once, in the confirming transaction) | `TestFirstSignInNotifiesAdministratorsOnce` |
 | "Open your mail" button | `WebmailUrlService` (domain + MX records) | `webmail()` table plus time-boxed, cached MX lookup (`webmailFromMX`) for custom domains | `TestWebmailDetection` |
+| Late students, correcting mistakes (beyond PHP) | – (PHP could neither add a student to a collection later nor correct anything) | `EnrolInOpenContributions`, `AddStudentToContribution`, `UpdateContribution`, `SetContributionClosed`, `DeleteContribution`, `ReverseManualIncome`, `VoidExpense` | `TestLateStudent*`, `TestUpdateContribution*`, `TestCloseContribution*`, `TestDeleteContribution*`, `TestReverseManualIncome*`, `TestVoidExpense*`, `TestLateStudentAndCollectionCorrectionsOverHTTP`, `TestManualEntriesCanBeReversedOverHTTP`, `TestCorrectionsAreForbiddenToParentsAndCouncil` |
 | Roles: admin / treasurer / parent | `assertTreasurer`, `ClassRole` | `store.RoleIn/CanManage`, guards in `web/server.go` | `TestPermissionsAcrossRoles`, `TestPermissionsAndClassIsolation` |
 | Classes, memberships, one treasurer per class | entities + unique index | `classes`, `memberships`, partial unique index | `TestPermissionsAndClassIsolation` |
 | Students, parents, invitations, merge | `TreasurerController::mergeStudents`, `AddStudentComponent` | `store/students.go`, `web/treasurer.go` | `TestMergeStudents`, `TestTreasurerWorkflowsOverHTTP`, `TestPermissionsAcrossRoles` |
@@ -78,6 +79,16 @@ and resource sampling have no counterpart: those mechanisms do not exist in the 
     replaced by the first-sign-in link mail, which carries the same subject ("Potwierdzenie rejestracji").
 18. **Parent total badge** says "Do zapłaty" (status colour + label) where PHP showed a pulsing red "Pilne".
 
+19. **Corrections (new, no PHP counterpart).** A new student can be put on every *running* collection from the
+    add-student form (not closed, not past due; ended ones are left alone) or added to any open collection by
+    hand. A collection can be edited (unpaid obligations and the payments bundling them follow the new amount;
+    paid ones keep theirs), closed/reopened (optionally withdrawing obligations nobody has started paying) or
+    deleted while nobody has paid into it. A hand-booked cash income is *reversed* (the payment becomes
+    `refunded`, its obligations reopen) and a hand-booked expense is *voided* (`voided_at`); both stay in the
+    "Ostatnie wpisy ręczne" history and leave the ledger. Online/bank payments are not reversible this way — they
+    keep the explicit refund transition. Migration `0003` is purely additive (nullable columns and columns with
+    defaults), so existing seed SQL keeps working.
+
 ## Not implemented (existed only as data fields or unwired templates in PHP)
 
 * Expense attachments (the PHP entity had a path column but no upload UI).
@@ -95,4 +106,9 @@ and resource sampling have no counterpart: those mechanisms do not exist in the 
 * SMTP/relay delivery is covered with an HTTP test double only.
 * The GHCR image publish step of `Go release artifacts` and the neutralised legacy workflows are linted with
   `actionlint` but have not been run on GitHub; nothing has been published to the registry.
+* Reversing the *second* of two part-payments on one obligation reopens the obligation as fully pending even
+  though the first part stays in the till (an obligation links to its latest payment only). Rare; the ledger and
+  cash balance are always right.
+* Still missing (reviewed, not built): per-student amounts (sibling discounts), class archive/year rollover,
+  parent data export/erasure, reminders to parents, expense attachments.
 * MX-based webmail detection is tested with a fake resolver only (real DNS is not exercised in CI).

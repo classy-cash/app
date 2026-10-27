@@ -209,8 +209,8 @@ checks and the visitor is sent to the login page. Running the command while the 
 (SQLite WAL, 5 s busy timeout); the server keeps no state in memory that a reload could make stale.
 The wrapper may equally stop the server, replace the database file and start it again.
 
-**Seed requirements** (schema: [`migrations/0001_init.sql`](../migrations/0001_init.sql); it is the source of
-truth, pin the wrapper to an app version and re-check on upgrades):
+**Seed requirements** (schema: [`migrations/`](../migrations) — `0001_init.sql` plus additive later files; they
+are the source of truth, pin the wrapper to an app version and re-check on upgrades):
 
 * Ids are integers; timestamps are RFC 3339 **UTC** text; money is integer **grosze**. Generate relative
   dates (deadlines, history) from the reset time in the wrapper.
@@ -231,6 +231,11 @@ truth, pin the wrapper to an app version and re-check on upgrades):
   Seed payments in every state (`pending, paid, failed, refunded, expired`), obligations in `pending, partial,
   paid`, matched/unmatched/review (`review_reason` set) transfers and `bank_events` rows
   (`parsed, unrecognized, duplicate_review`) to demonstrate each screen.
+* Migration `0003` (corrections) is additive and optional for a seed: `contributions.closed_at` (set = closed,
+  shown as "Zakończona"), `expenses.voided_at` (set = voided, left out of the ledger), `payments.source`
+  (`online` default; `manual` marks hand-booked cash so it appears in "Ostatnie wpisy ręczne" and can be
+  reversed) and `payments.note` (its description, e.g. `Jan Kowalski — Wycieczka`). A seed that ignores them
+  still loads; add `source='manual'` rows and a voided expense to demonstrate the new screens.
 * Attachments are not implemented in the Go app (the legacy field existed without UI); nothing to seed.
 
 `scripts/demo_acceptance.py` is a ready-made black-box check for any deployment (see its docstring); it needs only
