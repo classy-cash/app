@@ -121,8 +121,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "storage error", http.StatusInternalServerError)
 		return
 	}
-	if res.Outcome == store.OutcomeUnrecognized {
+	switch res.Outcome {
+	case store.OutcomeUnrecognized:
 		h.Log.Warn("bank mail: unrecognized", "id", ev.ID)
+	case store.OutcomeTest:
+		h.Log.Info("bank mail: diagnostic test notification, not booked", "id", ev.ID)
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

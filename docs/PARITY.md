@@ -120,6 +120,13 @@ and resource sampling have no counterpart: those mechanisms do not exist in the 
     treasurer, administrators and the council), with `nosniff`, a `sandbox` CSP, `no-store`, and PDFs as
     downloads. Disabled in demo mode. Tested by `TestReceipt*`.
 
+25. **Bank-pipeline self-test (new, no PHP counterpart).** Settings can open a diagnostic reference
+    (`CCTEST-XXXX-XXXX`, ≤ 10 zł) so the owner can verify the real Alior → Worker → webhook path with one small
+    transfer she makes herself. Notifications carrying a marker are intercepted before any transfer, matching,
+    payment or ledger logic (`internal/store/banktests.go`), including retries, duplicates, replays, late arrival
+    after expiry or cancellation, and concurrent deliveries; see INTEGRATION.md §3. Tested by `TestBankTest*`
+    (store and HTTP, including a mutation check that the tests fail without the interceptor).
+
 ## Not implemented (existed only as data fields or unwired templates in PHP)
 
 * In-app notification centre (`Notification` entity without UI) and *scheduled* daily reminder e-mails
@@ -132,7 +139,8 @@ and resource sampling have no counterpart: those mechanisms do not exist in the 
 
 * No automated browser/visual regression suite; screens were reviewed manually on a seeded instance.
 * The webhook has been verified against Ceramiza's *contract* and unit/HTTP tests here, **not** against a real
-  Alior message through the real Cloudflare Worker (that needs the infrastructure owned by Codex).
+  Alior message through the real Cloudflare Worker (that needs the infrastructure owned by Codex). The settings
+  self-test (item 25) is the tool for doing that with one real transfer; it has not been run against a real bank.
 * SMTP/relay delivery is covered with an HTTP test double only.
 * The GHCR image publish step of `Go release artifacts` and the neutralised legacy workflows are linted with
   `actionlint` but have not been run on GitHub; nothing has been published to the registry.

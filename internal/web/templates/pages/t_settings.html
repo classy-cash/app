@@ -31,4 +31,40 @@
   </dl>
   <p class="small muted">Te wartości ustawia operator instalacji; nie można ich zmienić z przeglądarki.</p>
 </section>
+<section class="card" id="bank-test" aria-labelledby="bt-h"><h2 id="bt-h" class="h3">Test połączenia z bankiem</h2>
+  <p class="muted small">Sprawdź na prawdziwym przelewie, że powiadomienie z banku dociera do aplikacji. Test to tylko wpis diagnostyczny: <strong>nie jest płatnością</strong>, nie rozlicza żadnej składki i nie zmienia salda kasy — także przy powtórzeniu, duplikacie ani po upływie terminu.</p>
+  {{if not .Data.BankTestOK}}<p class="consequence">{{.Data.BankTestWhy}}</p>
+  {{else}}
+  <ol class="small">
+    <li>Utwórz test (kwota do {{.Data.BankTestMax}}).</li>
+    <li><strong>Przelew wykonaj sam</strong> w swoim banku, na konto{{if .Data.Payee}} <span class="mono">{{.Data.Payee}}</span>{{else}}, z którego bank wysyła powiadomienia do aplikacji{{end}}, wpisując w tytule dokładnie podany niżej kod. Aplikacja niczego nie wysyła ani nie pobiera z konta.</li>
+    <li>Odśwież tę stronę: status zmieni się z „Oczekuje” na „Sukces”, gdy powiadomienie z banku dotrze (zwykle od kilku sekund do kilku minut, przelewy międzybankowe nawet do kilku godzin).</li>
+  </ol>
+  <form method="post" action="/treasurer/settings/bank-tests" class="inline-form amount-form">
+    {{template "csrf" .CSRF}}
+    <label class="visually-hidden" for="bt-amount">Kwota testowego przelewu (PLN)</label>
+    <input class="input input-amount" id="bt-amount" name="amount_pln" inputmode="decimal" value="1,00" required>
+    <button class="btn btn-outline" type="submit">Utwórz test</button>
+  </form>
+  {{end}}
+  {{if .Data.BankTests}}<ul class="list">
+  {{range .Data.BankTests}}{{$st := .State $.Data.Now}}<li class="list-item">
+    <div>
+      <p class="strong"><span class="mono">{{.Title}}</span> · {{money .ExpectedMinor}}</p>
+      <p class="small muted">Utworzono {{datetime .CreatedAt}}{{if .CreatedByName}} ({{.CreatedByName}}){{end}} · ważny do {{datetime .ExpiresAt}}</p>
+      {{if and (eq $st "success") .ObservedAt}}<p class="small">Powiadomienie odebrane {{datetime .ObservedAt}}{{if .ObservedMinor}}, kwota {{money .ObservedMinor}}{{end}}.{{if .AmountDiffers}} <strong>Kwota inna niż oczekiwana ({{money .ExpectedMinor}})</strong> — połączenie działa, ale sprawdź kwotę.{{end}}</p>
+      {{else if and .Seen .Parsed}}<p class="small">Powiadomienie dotarło {{datetime .ObservedAt}}, ale {{if eq $st "cancelled"}}test był już anulowany{{else}}po upływie terminu testu{{end}} — nie liczy się jako sukces. Utwórz nowy test, jeśli chcesz powtórzyć.</p>
+      {{else if .Seen}}<p class="small">Powiadomienie z tym tytułem dotarło ({{datetime .ObservedAt}}), ale nie zostało rozpoznane jako uznanie rachunku. Sprawdź jego treść w sekcji Płatności i zgłoś format operatorowi.</p>{{end}}
+      {{if gt .Hits 1}}<p class="small muted">Odebrano {{.Hits}} powiadomień z tym kodem; kolejne zostały zignorowane i niczego nie zaksięgowały.</p>{{end}}
+    </div>
+    <div class="row-actions">
+      {{if eq $st "success"}}<span class="badge badge-ok">✓ Sukces</span>
+      {{else if eq $st "pending"}}<span class="badge badge-info">Oczekuje</span>
+        <form method="post" action="/treasurer/settings/bank-tests/{{.ID}}/cancel" class="inline" data-confirm="Anulować ten test?">{{template "csrf" $.CSRF}}<button class="btn btn-ghost btn-sm danger" type="submit">Anuluj</button></form>
+      {{else if eq $st "expired"}}<span class="badge badge-warn">Wygasł</span>
+      {{else}}<span class="badge badge-muted">Anulowany</span>{{end}}
+    </div>
+  </li>{{end}}
+  </ul>{{end}}
+</section>
 {{end}}

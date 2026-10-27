@@ -148,6 +148,37 @@ recipient + envelope-sender + `From` checks. `BANK_MAIL_FROM` adds an app-side c
 *Planned, not required yet:* an optional `auth` object in the payload carrying the Worker's SPF/DKIM/DMARC
 verdicts, which the app would enforce when configured. Nothing in the current contract needs it.
 
+**Pipeline self-test (settings → "Test połączenia z bankiem").** The treasurer (or an administrator) opens a
+*diagnostic reference* — a unique marker `CCTEST-XXXX-XXXX` (8 random characters from an alphabet without
+`0 O 1 I L`, so it cannot be a payment code, which are 4-6 characters) with an expected amount of at most 10,00 zł —
+and makes a small **real transfer herself** with the marker in the title. The app never initiates, requests or
+simulates a transfer. Status is `Oczekuje` → `Sukces` once the bank's notification arrives through the Worker (open
+references: 3 per class, valid for 48 h; expiry is computed from the clock, not by a job).
+
+* **A reference is not a payment.** `processEvent` hands every delivery to the interceptor *before* parsing results
+  are stored or matched: a delivery whose title, subject or body contains a known marker (case, spaces and hyphens
+  are ignored) creates **no `transfers` row**, runs no matching (not by code, not by history), enqueues no
+  administrator mail, never touches `payments`, `student_payments` or the ledger, and is stored in `bank_events`
+  with status `test` (readable notification) or `test_unparsed` (marker present, not a recognised credit), never
+  `parsed`, so it does not count as an import.
+* **Retries, duplicates, replays.** Same event id ⇒ ordinary transport idempotency (no second count). A new event id
+  with the same marker (bank retry, second mail) is swallowed again and only raises the hit counter. Replaying a
+  stored event whose body carries a marker is swallowed too. Cancelled and expired references keep swallowing: a late
+  notification is recorded ("dotarło po terminie", **not** a success) and still books nothing.
+* **Races.** All of it runs in the ingest transaction under SQLite's immediate write lock, so a delivery racing a
+  cancellation or the expiry boundary is serialised: the outcome is success or cancelled/expired, never a booking.
+  A success cannot be cancelled. The interception is global — any known marker is swallowed whichever class it came from.
+* **Unrecognised look-alikes** (`CCTEST-…` that was never issued) are ordinary transfers. A delivery rejected by
+  `BANK_MAIL_FROM` is quarantined before any of this; the test then simply stays `Oczekuje`.
+* **Limits of what it proves.** Success shows that mail from the bank reached the Worker, passed the signature
+  check and was parsed. The sender/amount shown in `bank_events` is the bank's; a differing amount is flagged
+  but still counts as a successful round trip. A person who knew an open marker could hide a *real* transfer from
+  the books by putting it in the title (it would stay visible only as a `test` event with its hit counter on the
+  settings page) — markers are shown only to the class's managers, and a stray one is visible on the settings page as an unexpected hit.
+* **Not available in demo mode** (the webhook answers `503` there, so a real notification cannot arrive) or when the
+  webhook is not configured: the page says so and offers no form. Schema: migration `0006` (`bank_tests`), additive;
+  a seed may ignore it.
+
 **Intentional differences from Ceramiza** (none on the wire): Alior parser only (no generic parser); the
 duplicate-review rule above; unrecognised and spoofed-sender deliveries are acknowledged and kept for
 review instead of rejected; stored bodies are blanked after 90 days.
@@ -240,6 +271,7 @@ are the source of truth, pin the wrapper to an app version and re-check on upgra
   Seed payments in every state (`pending, paid, failed, refunded, expired`), obligations in `pending, partial,
   paid`, matched/unmatched/review (`review_reason` set) transfers and `bank_events` rows
   (`parsed, unrecognized, duplicate_review`) to demonstrate each screen.
+* Migration `0006` adds the diagnostic table `bank_tests` (empty in a seed; the feature is off in demo mode).
 * Migration `0005` adds `student_payments.amount_override` (`0`/`1`, default `0`; `1` = individual amount that edits
   of the collection do not overwrite). Optional in a seed.
 * Migration `0004` adds `classes.archived_at` (set = archived class: read-only, listed last). Optional in a seed.

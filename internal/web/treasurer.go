@@ -61,6 +61,8 @@ func (s *Server) treasurerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /treasurer/expenses/{id}/attachment/delete", m(s.handleAttachmentDelete))
 	mux.HandleFunc("GET /treasurer/settings", m(s.handleSettings))
 	mux.HandleFunc("POST /treasurer/settings", m(s.handleSettingsSave))
+	mux.HandleFunc("POST /treasurer/settings/bank-tests", m(s.handleBankTestCreate))
+	mux.HandleFunc("POST /treasurer/settings/bank-tests/{id}/cancel", m(s.handleBankTestCancel))
 	mux.HandleFunc("GET /treasurer/members", v(s.handleMembers))
 	mux.HandleFunc("POST /treasurer/members", m(s.handleMemberAdd))
 	mux.HandleFunc("POST /treasurer/members/{uid}/role", m(s.handleMemberRole))
@@ -768,9 +770,13 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, errs map
 		}
 		form["parent_registration"] = map[bool]string{true: "1", false: "0"}[r.PostFormValue("parent_registration") != ""]
 	}
+	bankTestOK, bankTestWhy := s.bankTestAvailable()
+	bankTests, _ := s.Store.BankTests(ctx, cl.ID, 10)
 	p := s.page(r, "Ustawienia", "settings", map[string]any{
 		"Form": form, "Errors": errs, "BankAddress": s.Cfg.Bank.Address, "BankEnabled": s.Cfg.Bank.Enabled(),
 		"MailDriver": s.Cfg.Mail.Driver, "Last": s.Store.LastBankEvent(ctx), "Instance": s.Cfg.InstanceID, "IsAdmin": state(r).user.IsAdmin,
+		"BankTests": bankTests, "BankTestOK": bankTestOK, "BankTestWhy": bankTestWhy, "Now": s.Store.Now(),
+		"BankTestMax": money.Format(store.MaxBankTestMinor), "Payee": cl.TransferAccount,
 	})
 	p.Layout = "layout_treasurer"
 	s.render(w, r, "t_settings", p, status)

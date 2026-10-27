@@ -180,6 +180,10 @@ func (s *Store) processEvent(ctx context.Context, tx *sql.Tx, eventID string, re
 		_, err := tx.ExecContext(ctx, `UPDATE bank_events SET status = ?, reason = ?, transfer_id = ? WHERE id = ?`, status, reason, tid, eventID)
 		return err
 	}
+	// A diagnostic reference is swallowed before anything else: no transfer row, no matching, no admin mail.
+	if res, hit, err := s.interceptBankTest(ctx, tx, eventID, received, parsed); err != nil || hit {
+		return res, err
+	}
 	if parsed == nil {
 		return IngestResult{Outcome: OutcomeUnrecognized}, setStatus("unrecognized", "Nie rozpoznano powiadomienia o uznaniu rachunku (nieznany format).", 0)
 	}
