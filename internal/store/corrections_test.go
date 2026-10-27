@@ -321,3 +321,85 @@ func TestVoidExpenseKeepsHistoryAndFixesBalance(t *testing.T) {
 		t.Fatalf("another class must not void it: %v", err)
 	}
 }
+
+func TestIndividualAmountSurvivesCollectionEdits(t *testing.T) {
+	f := newFixture(t)
+	sibling := f.student(f.class.ID, "Ola", "Kowalska", f.parent)
+	cid, err := f.s.CreateContribution(f.ctx, f.class.ID, "Wycieczka", 5000, nil, []int64{f.kid.ID, sibling.ID})
+	f.must(err)
+	pay, err := f.s.CreateFastPayment(f.ctx, f.parent, f.class.ID, nil)
+	f.must(err)
+	if pay.AmountMinor != 10000 {
+		t.Fatalf("bundle %d", pay.AmountMinor)
+	}
+	var olaSP StudentPayment
+	for _, it := range f.views()[0].Items {
+		if it.Student.ID == sibling.ID {
+			olaSP = *it.SP
+		}
+	}
+	f.must(f.s.SetObligationAmount(f.ctx, f.class.ID, olaSP.ID, 3000)) // sibling discount
+	got, _ := f.s.PaymentByID(f.ctx, f.class.ID, pay.ID)
+	if got.AmountMinor != 8000 {
+		t.Fatalf("the bundled payment must follow the discount, got %d", got.AmountMinor)
+	}
+	v := f.views()[0]
+	if v.ExpectedTotal != 8000 {
+		t.Fatalf("expected total must add the real obligations: %d", v.ExpectedTotal)
+	}
+	f.must(f.s.UpdateContribution(f.ctx, f.class.ID, cid, "Wycieczka", 6000, nil))
+	for _, it := range f.views()[0].Items {
+		want := int64(6000)
+		if it.Student.ID == sibling.ID {
+			want = 3000
+			if !it.SP.Overridden {
+				t.Fatal("the discount must stay flagged")
+			}
+		}
+		if it.SP.AmountMinor != want {
+			t.Fatalf("%s: %d, want %d", it.Student.FirstName, it.SP.AmountMinor, want)
+		}
+	}
+	// A student who joins later pays the standard amount.
+	late := f.student(f.class.ID, "Pi", "Późny")
+	f.must(f.s.AddStudentToContribution(f.ctx, f.class.ID, cid, late.ID))
+	for _, it := range f.views()[0].Items {
+		if it.Student.ID == late.ID && it.SP.AmountMinor != 6000 {
+			t.Fatalf("late student amount %d", it.SP.AmountMinor)
+		}
+	}
+	f.must(f.s.ResetObligationAmount(f.ctx, f.class.ID, olaSP.ID))
+	if sp := mustFindSPFor(f, sibling.ID); sp.AmountMinor != 6000 || sp.Overridden {
+		t.Fatalf("reset: %+v", sp)
+	}
+}
+
+func mustFindSPFor(f *fixture, studentID int64) StudentPayment {
+	all, _ := f.s.StudentPaymentsByClass(f.ctx, f.class.ID)
+	for _, sp := range all {
+		if sp.StudentID == studentID {
+			return sp
+		}
+	}
+	f.t.Fatalf("no obligation for student %d", studentID)
+	return StudentPayment{}
+}
+
+func TestIndividualAmountGuards(t *testing.T) {
+	f := newFixture(t)
+	sps := f.contribution(f.class.ID, "Wycieczka", 5000, f.kid)
+	other, _ := f.s.CreateClass(f.ctx, "5B")
+	if err := f.s.SetObligationAmount(f.ctx, f.class.ID, sps[0].ID, 0); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("zero must point to cancelling instead: %v", err)
+	}
+	if err := f.s.SetObligationAmount(f.ctx, other.ID, sps[0].ID, 100); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("another class: %v", err)
+	}
+	f.must(f.s.ManualIncome(f.ctx, f.class.ID, f.treas, 1000, sps[0].ID)) // part-paid
+	if err := f.s.SetObligationAmount(f.ctx, f.class.ID, sps[0].ID, 100); !errors.Is(err, ErrConflict) {
+		t.Fatalf("an obligation with payments must not change amount: %v", err)
+	}
+	if err := f.s.ResetObligationAmount(f.ctx, f.class.ID, sps[0].ID); !errors.Is(err, ErrConflict) {
+		t.Fatalf("reset follows the same rule: %v", err)
+	}
+}

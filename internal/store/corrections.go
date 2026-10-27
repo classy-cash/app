@@ -114,7 +114,8 @@ func (s *Store) EnrolInOpenContributions(ctx context.Context, classID, studentID
 // ---- collections ----
 
 // UpdateContribution changes the title, amount and due date. Unpaid obligations follow the new amount
-// (and the payments that bundle them are re-totalled); paid ones keep what was actually owed and paid.
+// (and the payments that bundle them are re-totalled); paid ones keep what was actually owed and paid, and
+// obligations with an individual amount keep it.
 func (s *Store) UpdateContribution(ctx context.Context, classID, id int64, title string, amountMinor int64, dueAt *time.Time) error {
 	title = strings.TrimSpace(title)
 	if title == "" || amountMinor <= 0 {
@@ -130,7 +131,7 @@ func (s *Store) UpdateContribution(ctx context.Context, classID, id int64, title
 		if _, err := tx.ExecContext(ctx, `UPDATE student_payments SET label = ?, due_at = ? WHERE contribution_id = ?`, title, nullTime(dueAt), id); err != nil {
 			return err
 		}
-		if _, err := tx.ExecContext(ctx, `UPDATE student_payments SET amount_minor = ? WHERE contribution_id = ? AND status <> 'paid'`, amountMinor, id); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE student_payments SET amount_minor = ? WHERE contribution_id = ? AND status <> 'paid' AND amount_override = 0`, amountMinor, id); err != nil {
 			return err
 		}
 		return reconcileContributionPayments(ctx, tx, id)
@@ -322,5 +323,59 @@ func (s *Store) VoidExpense(ctx context.Context, classID, id int64) error {
 			return nil // already voided
 		}
 		return recalcLedger(ctx, tx, classID, s.Now())
+	})
+}
+
+// ---- individual amounts ----
+
+// SetObligationAmount gives one student's unpaid obligation an individual amount (sibling discount, partial
+// exemption). Later edits of the collection's amount leave it alone. Only an obligation nobody has started
+// paying can change; to waive it completely, cancel the obligation instead.
+func (s *Store) SetObligationAmount(ctx context.Context, classID, spID, amountMinor int64) error {
+	if amountMinor <= 0 {
+		return errf(ErrInvalid, "amount must be positive; cancel the obligation to waive it")
+	}
+	return s.InTx(ctx, func(tx *sql.Tx) error {
+		sp, err := s.studentPayment(ctx, tx, classID, spID)
+		if err != nil {
+			return err
+		}
+		if sp.Status != SPPending {
+			return errf(ErrConflict, "only an obligation without payments can change amount")
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE student_payments SET amount_minor = ?, amount_override = 1 WHERE id = ?`, amountMinor, spID); err != nil {
+			return err
+		}
+		if sp.PaymentID != nil {
+			return reconcilePayment(ctx, tx, *sp.PaymentID)
+		}
+		return nil
+	})
+}
+
+// ResetObligationAmount puts an obligation back on the collection's amount.
+func (s *Store) ResetObligationAmount(ctx context.Context, classID, spID int64) error {
+	return s.InTx(ctx, func(tx *sql.Tx) error {
+		sp, err := s.studentPayment(ctx, tx, classID, spID)
+		if err != nil {
+			return err
+		}
+		if sp.ContributionID == nil {
+			return errf(ErrConflict, "the obligation does not belong to a collection")
+		}
+		if sp.Status != SPPending {
+			return errf(ErrConflict, "only an obligation without payments can change amount")
+		}
+		c, err := loadContribution(ctx, tx, classID, *sp.ContributionID)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE student_payments SET amount_minor = ?, amount_override = 0 WHERE id = ?`, c.AmountMinor, spID); err != nil {
+			return err
+		}
+		if sp.PaymentID != nil {
+			return reconcilePayment(ctx, tx, *sp.PaymentID)
+		}
+		return nil
 	})
 }

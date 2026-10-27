@@ -214,3 +214,42 @@ func countSubject(mails []store.OutboxMail, sub string) int {
 	}
 	return n
 }
+
+func TestIndividualAmountOverHTTP(t *testing.T) {
+	h := newHarness(t, nil)
+	tr, cls := h.onboarded()
+	ctx := context.Background()
+	_, kid := h.parent("anna@example.com", "Anna Kowalska", cls, "Jan", "Kowalski")
+	h.st.CreateContribution(ctx, cls.ID, "Wycieczka", 5000, nil, []int64{kid.ID})
+	v, _ := h.st.ContributionViews(ctx, cls.ID)
+	sp := id(v[0].Items[0].SP.ID)
+
+	_, body, _ := tr.get("/treasurer/contributions")
+	if !strings.Contains(body, "Zmień kwotę") {
+		t.Fatal("amount control expected for unpaid obligations")
+	}
+	if code, _, _ := tr.post("/treasurer/obligations/"+sp+"/amount", url.Values{"amount_pln": {"30,00"}}); code != 303 {
+		t.Fatal(code)
+	}
+	v, _ = h.st.ContributionViews(ctx, cls.ID)
+	if v[0].Items[0].SP.AmountMinor != 3000 || !v[0].Items[0].SP.Overridden {
+		t.Fatalf("%+v", v[0].Items[0].SP)
+	}
+	if _, body, _ = tr.get("/treasurer/contributions"); !strings.Contains(body, "Kwota indywidualna") || !strings.Contains(body, "Przywróć") {
+		t.Fatal("overridden obligations are flagged with a reset button")
+	}
+	tr.post("/treasurer/obligations/"+sp+"/amount", url.Values{"amount_pln": {"abc"}})
+	tr.post("/treasurer/obligations/"+sp+"/amount", url.Values{"amount_pln": {"0"}})
+	if v, _ = h.st.ContributionViews(ctx, cls.ID); v[0].Items[0].SP.AmountMinor != 3000 {
+		t.Fatal("invalid amounts must change nothing")
+	}
+	tr.post("/treasurer/obligations/"+sp+"/amount", url.Values{"reset": {"1"}})
+	if v, _ = h.st.ContributionViews(ctx, cls.ID); v[0].Items[0].SP.AmountMinor != 5000 || v[0].Items[0].SP.Overridden {
+		t.Fatal("reset must restore the collection amount")
+	}
+	anna := h.client()
+	anna.login("anna@example.com", "parentpass1")
+	if code, _, _ := anna.post("/treasurer/obligations/"+sp+"/amount", url.Values{"amount_pln": {"1"}}); code != 403 {
+		t.Fatalf("parents must not change amounts: %d", code)
+	}
+}

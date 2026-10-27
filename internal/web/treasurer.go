@@ -43,6 +43,7 @@ func (s *Server) treasurerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /treasurer/obligations/{id}/payment", m(s.handleObligationPayment))
 	mux.HandleFunc("POST /treasurer/obligations/{id}/paid", m(s.handleObligationPaid))
 	mux.HandleFunc("POST /treasurer/obligations/{id}/cancel", m(s.handleObligationCancel))
+	mux.HandleFunc("POST /treasurer/obligations/{id}/amount", m(s.handleObligationAmount))
 
 	mux.HandleFunc("GET /treasurer/students", v(s.handleStudents))
 	mux.HandleFunc("POST /treasurer/students", m(s.handleStudentAdd))
@@ -441,6 +442,31 @@ func (s *Server) handleObligationPaid(w http.ResponseWriter, r *http.Request) {
 	}
 	s.setFlash(w, r, "success", "Płatność została oznaczona jako opłacona.")
 	s.redirect(w, r, "/treasurer/contributions")
+}
+
+func (s *Server) handleObligationAmount(w http.ResponseWriter, r *http.Request) {
+	back := "/treasurer/contributions"
+	if r.PostFormValue("reset") != "" {
+		if err := s.Store.ResetObligationAmount(r.Context(), s.classID(r), pathID(r, "id")); err != nil {
+			s.flashErr(w, r, back, err)
+			return
+		}
+		s.setFlash(w, r, "success", "Przywrócono kwotę zbiórki.")
+		s.redirect(w, r, back)
+		return
+	}
+	amount, err := money.Parse(r.PostFormValue("amount_pln"))
+	if err != nil || amount <= 0 {
+		s.setFlash(w, r, "error", "Podaj poprawną, dodatnią kwotę. Aby całkiem zwolnić ucznia ze składki, anuluj obowiązek.")
+		s.redirect(w, r, back)
+		return
+	}
+	if err := s.Store.SetObligationAmount(r.Context(), s.classID(r), pathID(r, "id"), amount); err != nil {
+		s.flashErr(w, r, back, err)
+		return
+	}
+	s.setFlash(w, r, "success", "Kwota indywidualna została zapisana.")
+	s.redirect(w, r, back)
 }
 
 func (s *Server) handleObligationCancel(w http.ResponseWriter, r *http.Request) {

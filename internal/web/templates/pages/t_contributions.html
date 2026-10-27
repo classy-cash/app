@@ -26,7 +26,7 @@
     <div class="actions"><button class="btn btn-primary" type="submit">Uruchom składkę</button></div>
   </form>
 </section>{{end}}
-{{range .Data.Contributions}}
+{{range .Data.Contributions}}{{$c := .}}
 <section class="card" aria-labelledby="c{{.ID}}">
   <div class="card-head">
     <div><h2 id="c{{.ID}}" class="h3">Zbiórka: {{.Title}}</h2><p class="small muted">{{if .DueAt}}Termin: {{datep .DueAt}}{{else}}Bez terminu{{end}}</p></div>
@@ -50,6 +50,12 @@
             <form method="post" action="/treasurer/obligations/{{$sp.ID}}/payment" class="inline">{{template "csrf" $.CSRF}}<button class="btn btn-outline btn-sm" type="submit">Utwórz płatność</button></form>
             <form method="post" action="/treasurer/obligations/{{$sp.ID}}/paid" class="inline">{{template "csrf" $.CSRF}}<button class="btn btn-primary btn-sm" type="submit">Oznacz jako opłacone</button></form>
           {{end}}
+          {{if eq $sp.Status "pending"}}<form method="post" action="/treasurer/obligations/{{$sp.ID}}/amount" class="inline-form amount-form">{{template "csrf" $.CSRF}}
+            <label class="visually-hidden" for="am{{$sp.ID}}">Kwota dla {{.Student.FullName}}</label>
+            <input class="input input-amount" id="am{{$sp.ID}}" name="amount_pln" inputmode="decimal" value="{{plain $sp.AmountMinor}}" required>
+            <button class="btn btn-outline btn-sm" type="submit">Zmień kwotę</button>
+            {{if $sp.Overridden}}<span class="badge badge-info">Kwota indywidualna</span><button class="btn btn-ghost btn-sm" type="submit" name="reset" value="1" formnovalidate>Przywróć {{money $c.AmountMinor}}</button>{{end}}
+          </form>{{else if eq $sp.Status "partial"}}<span class="small muted">Do zapłaty: {{money $sp.AmountMinor}}</span>{{end}}
           <form method="post" action="/treasurer/obligations/{{$sp.ID}}/cancel" class="inline" data-confirm="Anulować obowiązek zapłaty dla {{.Student.FullName}}?">{{template "csrf" $.CSRF}}<button class="btn btn-ghost btn-sm danger" type="submit">Anuluj</button></form>
         {{end}}
         </div>

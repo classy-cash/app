@@ -107,6 +107,12 @@ and resource sampling have no counterpart: those mechanisms do not exist in the 
     Migration `0004`. Tested by `TestArchivedClass*`, `TestRollover*`, `TestArchivingAClassFreezesItOverHTTP`,
     `TestRolloverFromTheAdminPage`.
 
+23. **Individual amounts (new).** One student's unpaid obligation can get its own amount (sibling discount,
+    partial exemption) from the collection page; it is flagged, survives later edits of the collection amount,
+    feeds the bundled payment, the collection totals and the reports, and can be reset. Only obligations
+    without payments can change; waiving completely = cancel the obligation. Migration `0005`
+    (`student_payments.amount_override`). Tested by `TestIndividualAmount*`.
+
 ## Not implemented (existed only as data fields or unwired templates in PHP)
 
 * Expense attachments (the PHP entity had a path column but no upload UI).
@@ -127,5 +133,5 @@ and resource sampling have no counterpart: those mechanisms do not exist in the 
 * Reversing the *second* of two part-payments on one obligation reopens the obligation as fully pending even
   though the first part stays in the till (an obligation links to its latest payment only). Rare; the ledger and
   cash balance are always right.
-* Still missing (reviewed, not built): per-student amounts (sibling discounts), expense attachments.
+* Still missing (reviewed, not built): expense attachments.
 * MX-based webmail detection is tested with a fake resolver only (real DNS is not exercised in CI).

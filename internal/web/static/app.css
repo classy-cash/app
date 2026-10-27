@@ -220,3 +220,5 @@ dialog.modal::backdrop{background:rgba(15,23,42,.6);backdrop-filter:blur(6px)}
 .report-grid{display:grid;gap:var(--sp-4);grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}.report-grid .card{margin:0}
 .report-head{margin-bottom:var(--sp-4)}.report-summary{max-width:420px;margin-left:auto}
 @media print{.no-print{display:none!important}.card{box-shadow:none;border:0;padding:0}body{background:#fff}.table th,.table td{padding:4px 6px;font-size:.78rem}.alert{display:none}}
+
+.input-amount{width:110px!important;text-align:right}.amount-form{gap:var(--sp-1)}

@@ -32,6 +32,7 @@ type StudentPayment struct {
 	StudentName    string
 	Code           string // payment code of the linked payment, when any
 	PaymentStatus  string
+	Overridden     bool // individual amount, differs on purpose from the collection's
 }
 
 // Payment is what a parent sends the treasurer.
@@ -72,7 +73,7 @@ func (p Payment) Label() string {
 }
 
 const spCols = `sp.id, sp.class_id, sp.student_id, sp.payment_id, sp.contribution_id, sp.label, sp.amount_minor, sp.status, sp.created_at, sp.due_at, sp.paid_at,
-	st.first_name || ' ' || st.last_name, COALESCE(p.code,''), COALESCE(p.status,'')`
+	st.first_name || ' ' || st.last_name, COALESCE(p.code,''), COALESCE(p.status,''), sp.amount_override`
 const spFrom = ` FROM student_payments sp JOIN students st ON st.id = sp.student_id LEFT JOIN payments p ON p.id = sp.payment_id `
 
 func scanSP(r interface{ Scan(...any) error }) (StudentPayment, error) {
@@ -80,7 +81,7 @@ func scanSP(r interface{ Scan(...any) error }) (StudentPayment, error) {
 	var pid, cid sql.NullInt64
 	var created string
 	var due, paid sql.NullString
-	err := r.Scan(&sp.ID, &sp.ClassID, &sp.StudentID, &pid, &cid, &sp.Label, &sp.AmountMinor, &sp.Status, &created, &due, &paid, &sp.StudentName, &sp.Code, &sp.PaymentStatus)
+	err := r.Scan(&sp.ID, &sp.ClassID, &sp.StudentID, &pid, &cid, &sp.Label, &sp.AmountMinor, &sp.Status, &created, &due, &paid, &sp.StudentName, &sp.Code, &sp.PaymentStatus, &sp.Overridden)
 	if pid.Valid {
 		sp.PaymentID = &pid.Int64
 	}
@@ -275,7 +276,11 @@ func (s *Store) ContributionViews(ctx context.Context, classID int64) ([]Contrib
 	}
 	for i := range views {
 		v := &views[i]
-		v.ExpectedTotal = v.AmountMinor * int64(len(v.Items))
+		for _, it := range v.Items {
+			if it.SP != nil {
+				v.ExpectedTotal += it.SP.AmountMinor
+			}
+		}
 		if v.ExpectedTotal > 0 {
 			v.ProgressPct = int(v.TotalPaid * 100 / v.ExpectedTotal)
 		}
