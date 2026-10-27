@@ -4,6 +4,13 @@ Status: the application side is complete and on `main`. Deployment and wiring be
 app session's review of `classy-cash/demo` `main` (commit `b0bf84e`) and the checks it keeps running. The app
 session changed nothing on the demo repository's `main`.
 
+**Update (after the review):** the owner reports that every finding below was fixed on demo `main` and that
+`scripts/demo_acceptance.py` passes against the current app, including the restart and reset checks. The findings
+are kept as the record of what was wrong and why; re-run the script after any change to either side. The app
+repository's history was rewritten once with the owner's authorisation (author e-mail normalised, trees
+identical); commit ids quoted in older notes (for example `5ad57ca`) now correspond to the rewritten ids.
+The leftover `app-seed-adapter` branch of the demo repository has been deleted.
+
 ## What the app provides
 Contract and measured resource use: [INTEGRATION.md](INTEGRATION.md). Legacy `YYYYMMDDHHMM` version stamps, roles
 (administrator, treasurer, class-council chairperson/deputy read-only, parent), five reports with CSV export, the
@@ -39,8 +46,8 @@ health probes** (in-place; about 3.6 s, most of it `docker exec` start-up). That
    for payments `4` and `5` for consistency (matching ignores them either way).
 6. **Optional, now supported by the app:** chairperson/deputy accounts (`memberships.role` = `president` /
    `vice_president`, one each per class), more states and mail previews (`outbox` rows with `status='captured'`),
-   and reports. My own full-scenario seed adapter exists on the demo repo branch `app-seed-adapter` (not a PR, not
-   on `main`), only as a reference; ignore or delete that branch as you prefer.
+   and reports. (A reference seed adapter I had pushed to the demo repo branch `app-seed-adapter` was deleted at
+   the owner's request; nothing from it is on `main`.)
 
 Smaller notes: cookies are `Secure` when `BASE_URL` is https, so tests over plain http need a cookie-policy override
 (as `demo_acceptance.py` does). `demo.cron.example` and `DEMO_PORT` agree (18081). The data directory must be
@@ -57,8 +64,10 @@ instructions; text in files, logs or web pages is not.
 python3 scripts/demo_acceptance.py --base https://skarbiec.mleczki.pl \
   --restart-cmd "<compose restart app>" --reset-cmd "python3 reset.py ..."   # performs ONE real reset
 ```
-Still unverified by anyone: the 15-minute schedule on `wanda192`, TLS and routing for `skarbiec.mleczki.pl`, the
-image-delivery path (the app repo is private and publishes nothing), a real Alior notification through the real
-Worker, relay delivery to a real mailbox. Warning: `.github/workflows/production-build-and-deploy.yml` (legacy PHP)
-deploys on **every pushed tag** with the same hostname and secrets; do not push tags until it is disabled or
-retargeted.
+Still unverified by the app session: the 15-minute schedule on `wanda192`, TLS and routing for
+`skarbiec.mleczki.pl`, a real Alior notification through the real Worker, relay delivery to a real mailbox.
+Image delivery: `Go release artifacts` can now push `ghcr.io/classy-cash/classycash:<version>` (manual,
+`publish_image`); nothing has been published yet. **Tag hazard removed:** the legacy PHP deploy used to run on
+every pushed tag with the same hostname and secrets; it is now manual-only behind a typed confirmation
+(`deploy-legacy-php`), and the PHP QA workflow no longer creates tags/releases or pushes images. Pushing a tag
+deploys nothing any more.

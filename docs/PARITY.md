@@ -14,6 +14,8 @@ tests to the Go rewrite and lists every **deliberate** difference. "Tested" name
 | Password reset (treasurer/anyone) | stub, disabled | e-mailed single-use link, revokes sessions | `TestPasswordResetFlowRevokesSessions`, `TestAuthTokensAreSingleUseAndExpire` |
 | Parent registration flag | `RegisterUser`, `parent_registration` | `/register`, setting `parent_registration_enabled` | `TestParentRegistrationFlagAndSettings` |
 | Profile | `profile.html.twig` | `/profile` (name, phone, password) | `TestEveryTreasurerPageRenders` |
+| First-sign-in notice to administrators | `UserLoginSubscriber`, `NewUserHandler` | `store.ConfirmUser` queues one mail per administrator (once, in the confirming transaction) | `TestFirstSignInNotifiesAdministratorsOnce` |
+| "Open your mail" button | `WebmailUrlService` (domain + MX records) | `webmail()` table plus time-boxed, cached MX lookup (`webmailFromMX`) for custom domains | `TestWebmailDetection` |
 | Roles: admin / treasurer / parent | `assertTreasurer`, `ClassRole` | `store.RoleIn/CanManage`, guards in `web/server.go` | `TestPermissionsAcrossRoles`, `TestPermissionsAndClassIsolation` |
 | Classes, memberships, one treasurer per class | entities + unique index | `classes`, `memberships`, partial unique index | `TestPermissionsAndClassIsolation` |
 | Students, parents, invitations, merge | `TreasurerController::mergeStudents`, `AddStudentComponent` | `store/students.go`, `web/treasurer.go` | `TestMergeStudents`, `TestTreasurerWorkflowsOverHTTP`, `TestPermissionsAcrossRoles` |
@@ -33,6 +35,7 @@ tests to the Go rewrite and lists every **deliberate** difference. "Tested" name
 | Settings | `SettingsType`, `SettingsDtoMapper` | `/treasurer/settings` | `TestTreasurerWorkflowsOverHTTP` |
 | Bank notifications | IMAP polling (disabled in prod since 2026-09-22) | signed webhook, quarantine, replay | `bankmail/handler_test.go`, `TestWebhookEndToEndThroughMux` |
 | Maintenance mode | static page deploy | out of scope of the app (deployment layer) | – |
+| Release/deploy workflows | tag-triggered PHP deploy | legacy deploy is manual-only behind a typed confirmation; Go has CI and a manual, tag-free release workflow | `actionlint` (no runtime test) |
 
 PHP tests that exercised Swoole workers, Doctrine connection resetting, Messenger middleware, IMAP provider
 and resource sampling have no counterpart: those mechanisms do not exist in the Go design.
@@ -67,6 +70,14 @@ and resource sampling have no counterpart: those mechanisms do not exist in the 
 15. **Styling** is hand-written CSS on the brand tokens (no Tailwind/Node build), with local fonts, visible
     focus rings, status colours always paired with a label/icon, responsive tables and no inline styles/scripts.
 
+16. **Webmail hint**: unknown domains get no guessed `https://www.<domain>` link (PHP's last resort); the button
+    appears only for providers recognised by domain or MX (Gmail, Outlook, Zoho, WP, Onet, Interia, O2, iCloud,
+    Proton, Yahoo). MX lookups run only in `prod`, never in demo mode.
+17. **New-account mails**: the administrator notice of a first sign-in is kept; the user "registration
+    confirmation" mail of the PHP app (its text was written for another product and talked about bookings) is
+    replaced by the first-sign-in link mail, which carries the same subject ("Potwierdzenie rejestracji").
+18. **Parent total badge** says "Do zapłaty" (status colour + label) where PHP showed a pulsing red "Pilne".
+
 ## Not implemented (existed only as data fields or unwired templates in PHP)
 
 * Expense attachments (the PHP entity had a path column but no upload UI).
@@ -82,3 +93,6 @@ and resource sampling have no counterpart: those mechanisms do not exist in the 
 * The webhook has been verified against Ceramiza's *contract* and unit/HTTP tests here, **not** against a real
   Alior message through the real Cloudflare Worker (that needs the infrastructure owned by Codex).
 * SMTP/relay delivery is covered with an HTTP test double only.
+* The GHCR image publish step of `Go release artifacts` and the neutralised legacy workflows are linted with
+  `actionlint` but have not been run on GitHub; nothing has been published to the registry.
+* MX-based webmail detection is tested with a fake resolver only (real DNS is not exercised in CI).
