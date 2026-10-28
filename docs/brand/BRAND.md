@@ -65,4 +65,4 @@ Publication exports include `icon-SIZE.png` at 16/32 (favicon), 180 (Apple), 192
 
 Apply the same identity to the organisation avatar/profile, product site, repo README/cover, Go app and login, setup wizard, help pages, demo banner and transactional emails. Publish only fictional demo screenshots; mark demo images as examples. Hide deployment credentials and use no external tracking scripts in the credential step.
 
-Organisation profile copy is staged in `github-profile.md`. Repository visibility stays unchanged: public profile/marketing assets; private rewritten application. Publishing profile/site changes is a later rollout step, not completed by adding this kit.
+Organisation profile copy is staged in `github-profile.md`. The application repository (`classy-cash/app`) is public and MIT-licensed, so the brand kit in `assets/brand/` ships with it; the organisation profile and the product site (`classy-cash.github.io`) live in their own repositories and are published from there. Adding or changing files in this kit does not publish anything by itself.

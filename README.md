@@ -38,7 +38,8 @@ make docker                    # 36 MB Alpine image
 * [docs/INTEGRATION.md](docs/INTEGRATION.md) — configuration, health/readiness, the signed bank-mail webhook,
   the mail relay API, demo-mode contract, backups and release artifacts.
 * [docs/PARITY.md](docs/PARITY.md) — what was ported from the PHP application, how it is tested, deliberate differences.
-* [docs/go-rewrite-plan.md](docs/go-rewrite-plan.md) — the agreed plan; [docs/brand/BRAND.md](docs/brand/BRAND.md) — brand guide.
+* [docs/brand/BRAND.md](docs/brand/BRAND.md) — brand guide; [docs/go-rewrite-plan.md](docs/go-rewrite-plan.md) — archived
+  planning document (26 Oct 2026, superseded by the documentation above).
 
 ## Layout
 

@@ -1,6 +1,14 @@
 # ClassyCash Go rewrite and self-service deployment plan
 
-Historical planning document (baseline 26 October 2026; the PHP sources it cites were removed, the last commit containing them is `22f832b`). Status: product decisions agreed; application implementation and deployment have not started. Initial reusable brand assets are prepared locally.
+> **Archived planning document — not maintained.** It records the agreed plan as of 26 October 2026, before implementation. Where it
+> disagrees with the current documentation, the current documentation wins. In particular: the application repository is
+> `classy-cash/app`, it is public and licensed under [MIT](../LICENSE) (not private or proprietary); the Go rewrite is
+> implemented and released; the PHP sources it cites were removed (the last commit containing them is `22f832b`).
+>
+> Current documentation: [README](../README.md), [INTEGRATION.md](INTEGRATION.md) (configuration, webhook, demo mode,
+> releases), [PARITY.md](PARITY.md) (what was ported from PHP), [brand/BRAND.md](brand/BRAND.md), and, for the setup
+> wizard, FROG installation and the Wanda deployment, the `classy-cash/infrastructure` repository
+> (`docs/frog-instances.md`, `docs/wanda-deployment.md`).
 
 ## Confirmed scope
 
