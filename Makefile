@@ -1,5 +1,4 @@
-# Classy Cash (Go). The legacy PHP sources remain in the tree as the parity reference.
-# Legacy scheme: UTC build time as YYYYMMDDHHMM ("YmdHi"); override with VERSION=... for reproducible rebuilds.
+# Classy Cash (Go). Version scheme: UTC build time as YYYYMMDDHHMM; override with VERSION=... for reproducible rebuilds.
 VERSION ?= $(shell date -u +%Y%m%d%H%M)
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 DATE    ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)

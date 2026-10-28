@@ -1,6 +1,10 @@
 .git
 .github
 .idea
+.env.local
+.env.local.php
+.env.*.local
+config/secrets
 vendor
 node_modules
 var

@@ -1,35 +1,19 @@
-target
-
-###> symfony/framework-bundle ###
+# Local environment files and secrets: never commit (kept from the PHP/Symfony era on purpose; local files may still exist)
 /.env.local
 /.env.local.php
 /.env.*.local
 /config/secrets/prod/prod.decrypt.private.php
-/public/bundles/
-/var/
+
+# Leftover local dependency/cache directories
 /vendor/
-###< symfony/framework-bundle ###
-
-###> phpunit/phpunit ###
-/phpunit.xml
-.phpunit.result.cache
-.phpunit.cache
-###< phpunit/phpunit ###
-
-###> symfony/asset-mapper ###
-/public/assets/
+/var/
+node_modules/
 /assets/vendor/
-###< symfony/asset-mapper ###
 
-###> phpstan/phpstan ###
-phpstan.neon
-###< phpstan/phpstan ###
+/.idea/
+.DS_Store
 
-###> deptrac/deptrac ###
-/.deptrac.cache
-###< deptrac/deptrac ###
-
-###> go ###
+# Go build output and local data
 /dist/
 /bin/classycash
 /classycash
@@ -38,4 +22,3 @@ phpstan.neon
 *.db-wal
 *.db-shm
 /coverage.out
-###< go ###

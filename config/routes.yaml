@@ -1,5 +1,0 @@
-controllers:
-    resource:
-        path: ../src/UserInterface/Http
-        namespace: App\UserInterface\Http
-    type: attribute
