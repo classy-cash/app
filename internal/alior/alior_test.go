@@ -2,7 +2,7 @@ package alior
 
 import "testing"
 
-// Ported from tests/Application/Service/AliorMailParserTest.php.
+// Ported from tests/Application/Service/AliorMailParserTest.php (removed from the tree; see git show 22f832b:<path>).
 const legacyBody = `<html><br/>
 Uprzejmie informujemy, że rachunek 91...6978 został uznany kwotą 50,00 PLN.<br/>
 Nadawca: JAKIŚ RANDOM<br/>

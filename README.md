@@ -10,10 +10,9 @@ wpłaty i pokazywać rodzicom, ile zostało do zapłaty. Rodzice płacą bezpoś
 > `CLASSYCASH_SUPPORT_URL=off` ukrywa link, inny adres https go zmienia. Przycisk **Sponsor** na GitHubie
 > pochodzi z [.github/FUNDING.yml](.github/FUNDING.yml).
 
-This branch is the **Go rewrite**: one static binary, SQLite, no other services; it runs in 256 MB.
-The original Symfony/PHP application is kept in the tree (`src/`, `templates/`, `tests/`, …) only as the
-parity reference — see [docs/PARITY.md](docs/PARITY.md). Its README is archived in
-[docs/legacy-php-README.md](docs/legacy-php-README.md).
+Classy Cash is one static Go binary with SQLite and no other services; it runs in 256 MB. It replaced the
+original Symfony/PHP application, whose sources were removed from the tree (the last commit that contains them
+is `22f832b`); what was ported and what deliberately differs is in [docs/PARITY.md](docs/PARITY.md).
 
 ## Quick start
 
@@ -38,7 +37,7 @@ make docker                    # 36 MB Alpine image
 
 * [docs/INTEGRATION.md](docs/INTEGRATION.md) — configuration, health/readiness, the signed bank-mail webhook,
   the mail relay API, demo-mode contract, backups and release artifacts.
-* [docs/PARITY.md](docs/PARITY.md) — what was ported from PHP, how it is tested, deliberate differences.
+* [docs/PARITY.md](docs/PARITY.md) — what was ported from the PHP application, how it is tested, deliberate differences.
 * [docs/go-rewrite-plan.md](docs/go-rewrite-plan.md) — the agreed plan; [docs/brand/BRAND.md](docs/brand/BRAND.md) — brand guide.
 
 ## Layout

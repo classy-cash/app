@@ -1,7 +1,9 @@
 # Parity with the PHP application
 
-The PHP/Symfony application in this tree is the behavioural reference. This page maps its features and
-tests to the Go rewrite and lists every **deliberate** difference. "Tested" names Go tests that run in CI
+The original PHP/Symfony application was the behavioural reference. Its sources were removed from the tree; the
+last commit that still contains them is `22f832b` (for example `git show 22f832b:src/Application/Service/AliorMailParser.php`).
+This page maps its features and tests (the "PHP source" column names files as they were at that commit) to the
+Go rewrite and lists every **deliberate** difference. "Tested" names Go tests that run in CI
 (`go test -race ./...`); browser-level visual review was done by hand against a seeded instance (desktop and
 375 px mobile) and is not automated.
 
@@ -35,8 +37,8 @@ tests to the Go rewrite and lists every **deliberate** difference. "Tested" name
 | Dashboard cards, recent operations, balance | `*Component` live components | `Summary`, `LedgerPage`, auto-refresh + "load more" in `app.js` | `TestLedgerRunningBalanceAndManualMoney`, `TestEveryTreasurerPageRenders` |
 | Settings | `SettingsType`, `SettingsDtoMapper` | `/treasurer/settings` | `TestTreasurerWorkflowsOverHTTP` |
 | Bank notifications | IMAP polling (disabled in prod since 2026-09-22) | signed webhook, quarantine, replay | `bankmail/handler_test.go`, `TestWebhookEndToEndThroughMux` |
-| Maintenance mode | static page deploy | out of scope of the app (deployment layer) | – |
-| Release/deploy workflows | tag-triggered PHP deploy | legacy deploy is manual-only behind a typed confirmation; Go has CI and a manual, tag-free release workflow | `actionlint` (no runtime test) |
+| Maintenance mode | static page deploy | out of scope of the app (deployment layer); the PHP maintenance page and Ansible roles were removed | – |
+| Release/deploy workflows | tag-triggered PHP deploy | PHP workflows removed; Go has CI and a manual, tag-free release workflow | `actionlint` (no runtime test) |
 
 PHP tests that exercised Swoole workers, Doctrine connection resetting, Messenger middleware, IMAP provider
 and resource sampling have no counterpart: those mechanisms do not exist in the Go design.
@@ -142,8 +144,8 @@ and resource sampling have no counterpart: those mechanisms do not exist in the 
   Alior message through the real Cloudflare Worker (that needs the infrastructure owned by Codex). The settings
   self-test (item 25) is the tool for doing that with one real transfer; it has not been run against a real bank.
 * SMTP/relay delivery is covered with an HTTP test double only.
-* The GHCR image publish step of `Go release artifacts` and the neutralised legacy workflows are linted with
-  `actionlint` but have not been run on GitHub; nothing has been published to the registry.
+* The GHCR image publish step of `Go release artifacts` is linted with `actionlint` but has not been run on
+  GitHub; nothing has been published to the registry.
 * Reversing the *second* of two part-payments on one obligation reopens the obligation as fully pending even
   though the first part stays in the till (an obligation links to its latest payment only). Rare; the ledger and
   cash balance are always right.

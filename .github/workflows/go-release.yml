@@ -1,11 +1,11 @@
 name: Go release artifacts
 
 # Manual only. By default this workflow creates no git tag and no GitHub release; the artifacts are attached to
-# this workflow run (and expire with it). With publish_release it also creates the durable, private GitHub
+# this workflow run (and expire with it). With publish_release it also creates the durable GitHub
 # Release v<version> in this repository, from which per-instance FROG installers fetch the archives (contract:
 # docs/INTEGRATION.md, "Release publication contract"). With publish_image it also pushes a multi-arch container image to GHCR under a name of its own
-# (ghcr.io/<owner>/classycash:<version>, never ":latest"), distinct from the legacy PHP image
-# (ghcr.io/<owner>/app). The legacy tag-triggered deploy is disabled (see docs/INTEGRATION.md, "Release artifacts").
+# (ghcr.io/<owner>/classycash:<version>, never ":latest"). Pushing a tag deploys nothing (see docs/INTEGRATION.md,
+# "Release artifacts").
 on:
   workflow_dispatch:
     inputs:
@@ -15,7 +15,7 @@ on:
         default: ''
         type: string
       publish_release:
-        description: 'Also create the private GitHub Release v<version> (tag at this commit) with both archives and SHA256SUMS'
+        description: 'Also create the GitHub Release v<version> (tag at this commit) with both archives and SHA256SUMS'
         required: false
         default: false
         type: boolean

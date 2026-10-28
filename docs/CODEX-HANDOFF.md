@@ -67,7 +67,7 @@ python3 scripts/demo_acceptance.py --base https://skarbiec.mleczki.pl \
 Still unverified by the app session: the 15-minute schedule on `wanda192`, TLS and routing for
 `skarbiec.mleczki.pl`, a real Alior notification through the real Worker, relay delivery to a real mailbox.
 Image delivery: `Go release artifacts` can now push `ghcr.io/classy-cash/classycash:<version>` (manual,
-`publish_image`); nothing has been published yet. **Tag hazard removed:** the legacy PHP deploy used to run on
-every pushed tag with the same hostname and secrets; it is now manual-only behind a typed confirmation
-(`deploy-legacy-php`), and the PHP QA workflow no longer creates tags/releases or pushes images. Pushing a tag
-deploys nothing any more.
+`publish_image`); no image has been published yet. Public GitHub Releases `v202610280850`, `v202610281446` and
+`v202610281453` exist (see INTEGRATION.md §7). **Tag hazard removed:** the legacy PHP deploy used to run on
+every pushed tag with the same hostname and secrets; the PHP deploy, QA and maintenance workflows have since been
+deleted together with the PHP sources. Pushing a tag deploys nothing.

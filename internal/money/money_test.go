@@ -2,7 +2,7 @@ package money
 
 import "testing"
 
-// Cases ported from tests/Domain/TransferMoneyParserTest.php.
+// Cases ported from tests/Domain/TransferMoneyParserTest.php (removed from the tree; see git show 22f832b:<path>).
 func TestParseLegacyCases(t *testing.T) {
 	cases := []struct {
 		in   string

@@ -314,7 +314,7 @@ buttons present; `generation` increased.
 
 ## 7. Release artifacts and upgrades
 
-* **Versioning keeps the legacy PHP scheme**: the version is the UTC build time `YYYYMMDDHHMM` (e.g.
+* **Versioning uses a UTC build-time scheme** (inherited from the original PHP application): the version is the UTC build time `YYYYMMDDHHMM` (e.g.
   `202610271430`), injected with `-ldflags` and shown in the UI as "Wersja z 15:30, 27 paź" (installation time
   zone). `make release` / `scripts/release.sh` default to the current time; pass `VERSION=…` to rebuild an existing
   release byte-for-byte. Local builds report `dev`. Config compatibility is tracked separately by `CONFIG_VERSION`.
@@ -334,15 +334,17 @@ buttons present; `generation` increased.
   as user `classycash` with `/etc/classycash/env`.
 * GitHub: `Go CI` runs on pushes/PRs. `Go release artifacts` is **manual** and, unless asked, uploads the files
   only as workflow artifacts (they expire) and creates no tag or release. With `publish_release` it additionally
-  creates the durable private GitHub Release described below. With `publish_image` it also pushes a multi-arch image
-  `ghcr.io/classy-cash/classycash:<version>` (private package; no `latest` tag, pin the version; the legacy PHP
-  image lives under `ghcr.io/classy-cash/app` and is not touched). Nothing has been published yet — the first
-  publish is a deliberate act of the release owner.
+  creates the durable GitHub Release described below. With `publish_image` it also pushes a multi-arch image
+  `ghcr.io/classy-cash/classycash:<version>` (private package; no `latest` tag, pin the version; the old PHP
+  image under `ghcr.io/classy-cash/app` is no longer built). Public GitHub Releases exist for `v202610280850`
+  (`b6756c8`), `v202610281446` (`d5fac03`) and `v202610281453` (`22f832b`), each with the two archives and
+  `SHA256SUMS`. No container image has been published to GHCR yet; every publish is a deliberate act of the release
+  owner.
 * **Release publication contract** (consumed by the per-instance FROG installer in `classy-cash/infrastructure`,
   `templates/instance`). Instances never build the app and never read workflow artifacts, which expire. A release
   is published by running `Go release artifacts` manually with `publish_release` on `main`; the `release` job
   (the only one with `contents: write`) then:
-  * creates the tag `v<version>` at the built commit and a GitHub Release of the same name in this private
+  * creates the tag `v<version>` at the built commit and a GitHub Release of the same name in this
     repository, marked "not latest", with exactly three assets: `classycash_<version>_linux_amd64.tar.gz`,
     `classycash_<version>_linux_arm64.tar.gz` and `SHA256SUMS`;
   * refuses to run when the tag or release already exists. **A published version is immutable**: never delete,
@@ -352,16 +354,15 @@ buttons present; `generation` increased.
     pins in the instance repository's `release.json`, taken from this `SHA256SUMS`; the instance verifies the
     download against that pin and the archive layout before touching the host, and verifies the checksum again
     on the server;
-  * the tag push triggers no workflow (the legacy PHP deploy is disabled, see below).
-  Instances download with a fine-grained read-only token limited to this repository (`Contents: read`), only
-  when the pinned version differs from the installed one. Weekly maintenance without a pending upgrade needs no
-  token. Retention: keep every version that any instance is still pinned to.
-* **Legacy PHP workflows are neutralised** (they used to deploy the old app on every pushed tag over the shared
-  hostname and secrets, and the QA workflow could create such a tag from `master`): `production-build-and-deploy.yml`
-  is now `workflow_dispatch` only and does nothing unless the typed confirmation `deploy-legacy-php` is supplied;
-  `build-and-qa.yml` runs only for pull requests that touch the PHP sources, no longer pushes images, creates
-  releases/tags or force-pushes a coverage branch. Pushing a tag is therefore safe; it deploys nothing.
-  `maintenance.yml` is unchanged (manual) and still belongs to the old PHP/Mikrus host.
+  * the tag push triggers no workflow.
+  Instances download the release anonymously over HTTPS (no token or credential of any kind), only when the
+  pinned version differs from the installed one; this requires the release to be publicly downloadable.
+  Weekly maintenance without a pending upgrade downloads nothing. Retention: keep every version that any
+  instance is still pinned to.
+* **The legacy PHP application is gone from the tree**, together with its QA, production-deploy and
+  maintenance-page workflows, Ansible roles, Docker/compose files and Symfony configuration. Pushing a tag
+  deploys nothing. The last commit that still contains the PHP sources is `22f832b`
+  (`git show 22f832b:src/…`; see [PARITY.md](PARITY.md)).
 * Upgrade procedure for the deployment layer: `classycash backup` → replace the binary → restart (migrations
   run at start-up; `/ready` is `503` until they finish) → check `/ready` and `/version`. Binary rollback is safe
   only while the schema is unchanged; otherwise restore the pre-upgrade backup. The bank address, secrets,

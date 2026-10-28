@@ -18,7 +18,7 @@ Primary language: Polish. Tone: calm, clear and practical. Explain actions in ev
 
 ## Existing visual identity
 
-Extend the current PHP frontend's design, rather than introduce a different identity. The symbol is taken from `assets/images/favicon.svg`; palette and typography come from `assets/styles/app.css` and `templates/base.html.twig`.
+Extend the design of the original application rather than introduce a different identity. The symbol is `assets/images/favicon.svg`; palette and typography live in `assets/brand/tokens.css` and the application stylesheet (`internal/web/static/app.css`).
 
 | Role | Color | Application |
 | --- | --- | --- |

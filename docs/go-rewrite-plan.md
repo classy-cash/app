@@ -1,6 +1,6 @@
 # ClassyCash Go rewrite and self-service deployment plan
 
-Planning baseline: 26 October 2026. Status: product decisions agreed; application implementation and deployment have not started. Initial reusable brand assets are prepared locally.
+Historical planning document (baseline 26 October 2026; the PHP sources it cites were removed, the last commit containing them is `22f832b`). Status: product decisions agreed; application implementation and deployment have not started. Initial reusable brand assets are prepared locally.
 
 ## Confirmed scope
 
