@@ -142,7 +142,7 @@ zaślepkę). W trakcie przerwy nie wypychaj nowych tagów, bo każdy tag wdraża
 
 ## 📄 Licencja
 
-Oprogramowanie jest własnościowe (proprietary); wszelkie prawa zastrzeżone. Repozytorium jest prywatne. Szczegóły w pliku LICENSE.
+Oprogramowanie jest udostępnione na licencji MIT (© 2026 Michał Mleczko). Szczegóły w pliku LICENSE.
 
 ---
 *Stworzone, aby ułatwić życie każdemu skarbnikowi.* 🎓

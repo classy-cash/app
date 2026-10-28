@@ -4,8 +4,11 @@
 wpłaty i pokazywać rodzicom, ile zostało do zapłaty. Rodzice płacą bezpośrednio skarbnikowi — aplikacja
 **nie przelewa ani nie przechowuje pieniędzy**, tylko zapisuje i dopasowuje wpłaty (BLIK, przelew, gotówka).
 
-> Własnościowe oprogramowanie (proprietary), wszelkie prawa zastrzeżone — patrz [LICENSE](LICENSE).
-> Repozytorium jest prywatne.
+> Oprogramowanie na licencji [MIT](LICENSE) © 2026 Michał Mleczko.
+> Aplikacja jest dobrowolnie wspierana: zalogowani użytkownicy bez zaległych składek widzą dyskretny link
+> „postaw autorowi kawę” ([suppi.pl/mleczakm](https://suppi.pl/mleczakm)). Nic nie jest wymagane;
+> `CLASSYCASH_SUPPORT_URL=off` ukrywa link, inny adres https go zmienia. Przycisk **Sponsor** na GitHubie
+> pochodzi z [.github/FUNDING.yml](.github/FUNDING.yml).
 
 This branch is the **Go rewrite**: one static binary, SQLite, no other services; it runs in 256 MB.
 The original Symfony/PHP application is kept in the tree (`src/`, `templates/`, `tests/`, …) only as the
