@@ -251,9 +251,10 @@ dialog.modal::backdrop{background:rgba(15,23,42,.6);backdrop-filter:blur(6px)}
 .demo-countdown{font-weight:700;margin-left:var(--sp-2);white-space:nowrap}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 @media (min-width:1024px){body.has-sidebar .demo-banner{margin-left:256px}}
-@media print{.sidebar,.topbar,.bottom-nav,.demo-banner,.site-credit{display:none}.content{margin:0}}
+@media print{.sidebar,.topbar,.bottom-nav,.demo-banner,.site-credit,.coffee{display:none}.content{margin:0}}
 .inline-form{display:flex;gap:var(--sp-2);align-items:center;flex-wrap:wrap}.inline-form .input{min-height:36px;padding:6px 12px;width:auto}
 .version{margin-top:var(--sp-2)}
+.coffee{margin-top:var(--sp-4);font-size:.78rem;line-height:1.5;color:var(--muted-text);text-align:center}.coffee a{color:inherit;text-decoration:underline}.coffee a:hover{color:var(--primary)}
 .site-credit{margin-top:var(--sp-6);padding-top:var(--sp-4);border-top:1px solid var(--border);font-size:.75rem;line-height:1.5;color:var(--muted-text);text-align:center}.site-credit a{color:inherit;text-decoration:underline}.site-credit a:hover{color:var(--primary)}
 .auth-main .site-credit{border-top:0;max-width:440px;margin-top:var(--sp-4)}
 .report-grid{display:grid;gap:var(--sp-4);grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}.report-grid .card{margin:0}

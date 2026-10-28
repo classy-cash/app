@@ -34,6 +34,7 @@ A commented template is in [`deploy/env.example`](../deploy/env.example).
 | `TRUST_PROXY` | off | Honour the rightmost `X-Forwarded-For` hop (set behind the FROG HTTPS proxy) for rate limiting. |
 | `SESSION_SECRET` | dev only | ≥ 32 chars; keys CSRF tokens. Required in `prod`. Rotating it invalidates open forms, not sessions. |
 | `CLAIM_TOKEN` | – | One-time owner claim code for first-run onboarding (see below). |
+| `SUPPORT_URL` | `https://suppi.pl/mleczakm` | Voluntary "buy the author a coffee" page. Works by default in every instance, demo included; the link is shown only to a signed-in user who has no unpaid or partly paid obligation in any class. `off` hides it; any other value must be an `https` URL. |
 | `MAIL_DRIVER` | `relay` if a relay URL is set, `log` in dev, else `capture` | `relay`, `log` or `capture`. `log`/`capture` never leave the host. |
 | `MAIL_RELAY_URL` / `MAIL_RELAY_KEY` | – | Relay endpoint (https in prod) and its per-instance bearer key. |
 | `MAIL_FROM_NAME` | `Classy Cash` | Display name sent to the relay. The visible From *address* is owned by the relay. |

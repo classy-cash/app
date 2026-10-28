@@ -124,6 +124,15 @@ func (s *Store) StudentPaymentsForParent(ctx context.Context, userID, classID in
 	return querySPs(ctx, s.DB, `WHERE sp.class_id = ? AND sp.student_id IN (SELECT student_id FROM student_parents WHERE user_id = ?) ORDER BY (sp.status = 'paid'), sp.created_at DESC, sp.id DESC`, classID, userID)
 }
 
+// HasOpenDues reports whether any of the user's children has an unpaid or partly paid obligation in any class
+// (the same rows the parent's "Wymagane składki" list shows). It is deliberately not limited to the class being viewed.
+func (s *Store) HasOpenDues(ctx context.Context, userID int64) (bool, error) {
+	var open bool
+	err := s.DB.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM student_payments sp
+		WHERE sp.status IN ('pending','partial') AND sp.student_id IN (SELECT student_id FROM student_parents WHERE user_id = ?))`, userID).Scan(&open)
+	return open, err
+}
+
 func (s *Store) studentPayment(ctx context.Context, x querier, classID, id int64) (StudentPayment, error) {
 	list, err := querySPs(ctx, x, `WHERE sp.id = ? AND sp.class_id = ?`, id, classID)
 	if err != nil {

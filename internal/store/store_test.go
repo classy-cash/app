@@ -694,3 +694,35 @@ func TestFirstSignInNotifiesAdministratorsOnce(t *testing.T) {
 		t.Fatalf("want exactly one new-user notice for the administrator, got %d", n)
 	}
 }
+
+func TestHasOpenDuesFollowsTheParentsObligationsInEveryClass(t *testing.T) {
+	f := newFixture(t)
+	has := func(u User) bool {
+		t.Helper()
+		open, err := f.s.HasOpenDues(f.ctx, u.ID)
+		f.must(err)
+		return open
+	}
+	if has(f.parent) || has(f.treas) {
+		t.Fatal("nobody owes anything yet")
+	}
+	sps := f.contribution(f.class.ID, "Wycieczka", 5000, f.kid)
+	if !has(f.parent) || has(f.treas) { // only the child's parent owes; the treasurer has no children
+		t.Fatal("pending obligation must count for the parent only")
+	}
+	f.must(f.s.ManualIncome(f.ctx, f.class.ID, f.treas, 2000, sps[0].ID))
+	if !has(f.parent) {
+		t.Fatal("a partly paid obligation is still owed")
+	}
+	f.must(f.s.MarkStudentPaymentPaid(f.ctx, f.class.ID, sps[0].ID, f.treas))
+	if has(f.parent) {
+		t.Fatal("a fully paid obligation is not owed")
+	}
+	other, err := f.s.CreateClass(f.ctx, "5B")
+	f.must(err)
+	kid2 := f.student(other.ID, "Ola", "Kowalska", f.parent)
+	f.contribution(other.ID, "Kino", 2500, kid2)
+	if !has(f.parent) {
+		t.Fatal("dues in another class must count too")
+	}
+}

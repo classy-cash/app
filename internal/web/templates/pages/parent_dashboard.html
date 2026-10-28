@@ -23,6 +23,7 @@
   <h2 id="hist-h" class="h3">Historia wpłat</h2>
   <ul class="list">{{range .Data.Paid}}<li class="list-item"><div><p class="strong">{{.Label}}</p><p class="small muted">{{.StudentName}}{{if .PaidAt}} · {{datep .PaidAt}}{{end}}</p></div><div class="right"><p class="strong">{{money .AmountMinor}}</p><span class="badge badge-ok">✓ Zapłacono</span></div></li>{{end}}</ul>
 </section>{{end}}
+{{template "coffee" .Data.Coffee}}
 {{if .IsManager}}<section class="parent-section"><a class="btn btn-primary btn-block" href="/treasurer/dashboard">Panel skarbnika</a></section>{{else if .IsViewer}}<section class="parent-section"><a class="btn btn-primary btn-block" href="/treasurer/dashboard">Panel rady klasowej (podgląd)</a><p class="small muted center">{{.RoleLabel}}</p></section>{{end}}
 
 <dialog id="fastpay" class="modal" aria-labelledby="fp-title">

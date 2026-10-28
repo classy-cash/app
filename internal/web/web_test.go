@@ -698,3 +698,129 @@ func TestLoginTabsAndFormHelpers(t *testing.T) {
 		t.Error("app.js must ship the password toggle and the double-submit guard")
 	}
 }
+
+const coffeeURL = "https://suppi.pl/mleczakm"
+
+// coffeeCount counts the voluntary-support link on a page.
+func coffeeCount(body string) int { return strings.Count(body, `href="`+coffeeURL+`"`) }
+
+func TestCoffeeLinkAppearsOnlyForUsersWithoutDues(t *testing.T) {
+	h := newHarness(t, nil)
+	tr, cls := h.onboarded()
+	ctx := context.Background()
+	anna, kid := h.parent("anna@example.com", "Anna Kowalska", cls, "Jan", "Kowalski")
+	h.parent("ola@example.com", "Ola Nowak", cls, "Ola", "Nowak") // a parent whose child is on no collection
+	a, o := h.client(), h.client()
+	a.login("anna@example.com", "parentpass1")
+	o.login("ola@example.com", "parentpass1")
+	_, body, _ := a.get("/parent")
+	if coffeeCount(body) != 1 || !strings.Contains(body, "dobrowolnie") || !strings.Contains(body, `rel="noopener noreferrer"`) {
+		t.Fatalf("a parent who owes nothing should see the link once:\n%s", body)
+	}
+	// Treasurer (no children of their own) sees it on the dashboard and on the parent page.
+	for _, path := range []string{"/treasurer/dashboard", "/parent"} {
+		if _, body, _ := tr.get(path); coffeeCount(body) != 1 {
+			t.Errorf("treasurer %s: want one link", path)
+		}
+	}
+	// A collection is assigned: only the parent who now owes loses the link; the other parent and the treasurer keep it.
+	contribution, err := h.st.CreateContribution(ctx, cls.ID, "Wycieczka", 5000, nil, []int64{kid.ID})
+	if err != nil || contribution == 0 {
+		t.Fatal(err)
+	}
+	if _, body, _ := a.get("/parent"); coffeeCount(body) != 0 || strings.Contains(body, "postawić autorowi kawę") {
+		t.Fatal("a parent with an unpaid obligation must not see the link")
+	}
+	if _, body, _ := o.get("/parent"); coffeeCount(body) != 1 {
+		t.Fatal("another parent without dues keeps the link")
+	}
+	if _, body, _ := tr.get("/treasurer/dashboard"); coffeeCount(body) != 1 {
+		t.Fatal("the treasurer's own state is independent of other people's dues")
+	}
+	// A partial payment is still a due; once paid in full the link returns.
+	sps, _ := h.st.StudentPaymentsForParent(ctx, anna.ID, cls.ID)
+	teresa, _ := h.st.UserByEmail(ctx, "teresa@example.com")
+	if err := h.st.ManualIncome(ctx, cls.ID, teresa, 2000, sps[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, body, _ := a.get("/parent"); coffeeCount(body) != 0 {
+		t.Fatal("a partly paid obligation is still owed")
+	}
+	if err := h.st.MarkStudentPaymentPaid(ctx, cls.ID, sps[0].ID, teresa); err != nil {
+		t.Fatal(err)
+	}
+	if _, body, _ := a.get("/parent"); coffeeCount(body) != 1 {
+		t.Fatal("link must return once everything is paid")
+	}
+	// Dues in another class also hide it, whichever class the page shows.
+	other, err := h.st.CreateClass(ctx, "5B")
+	if err != nil {
+		t.Fatal(err)
+	}
+	kid2, err := h.st.AddStudent(ctx, other.ID, "Ola", "Kowalska", []int64{anna.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.st.CreateContribution(ctx, other.ID, "Kino", 2500, nil, []int64{kid2.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if _, body, _ := a.get("/parent"); coffeeCount(body) != 0 {
+		t.Fatal("dues in any class hide the link")
+	}
+}
+
+func TestCoffeeLinkIsHiddenOnlyByConfigurationAndCanBeChanged(t *testing.T) {
+	off := newHarness(t, func(c *config.Config) { c.SupportURL = "" })
+	tr, _ := off.onboarded()
+	for _, path := range []string{"/treasurer/dashboard", "/parent"} {
+		if _, body, _ := tr.get(path); strings.Contains(body, "autorowi kawę") || coffeeCount(body) != 0 {
+			t.Errorf("SupportURL empty: %s must not show the link", path)
+		}
+	}
+	custom := newHarness(t, func(c *config.Config) { c.SupportURL = "https://example.org/kawa?x=1&y=2" })
+	tr, _ = custom.onboarded()
+	if _, body, _ := tr.get("/parent"); !strings.Contains(body, `href="https://example.org/kawa?x=1&amp;y=2"`) || coffeeCount(body) != 0 {
+		t.Fatalf("a configured URL replaces the default and is escaped:\n%s", body)
+	}
+	// Login and error pages never carry it (nobody is signed in there).
+	if _, body, _ := custom.client().get("/login"); strings.Contains(body, "autorowi kawę") {
+		t.Fatal("login must not show the link")
+	}
+}
+
+func TestCoffeeLinkWorksInTheDemoByDefaultAndRespectsDues(t *testing.T) {
+	d := newHarness(t, func(c *config.Config) {
+		c.Demo = true
+		c.Mail.Driver, c.Mail.RelayURL, c.Mail.RelayKey = "capture", "", ""
+		c.Bank.Secret, c.Bank.Address = "", ""
+	})
+	seed := `INSERT INTO users (id,email,name,password_hash,is_admin,created_at,confirmed_at) VALUES (1,'skarbnik@example.test','Demo Skarbnik','',1,'2026-10-27T10:00:00Z','2026-10-27T10:00:00Z'),(2,'rodzic@example.test','Demo Rodzic','',0,'2026-10-27T10:00:00Z','2026-10-27T10:00:00Z');
+INSERT INTO classes (id,name,blik_phone,created_at) VALUES (1,'Demo 4A','+48 000 000 000','2026-10-27T10:00:00Z');
+INSERT INTO memberships (user_id,class_id,role) VALUES (1,1,'treasurer'),(2,1,'parent');
+INSERT INTO students (id,class_id,first_name,last_name) VALUES (1,1,'Jan','Demo');
+INSERT INTO student_parents (student_id,user_id) VALUES (1,2);
+INSERT INTO settings (key,value) VALUES ('demo_accounts','[{"label":"Skarbnik","email":"skarbnik@example.test","role":"skarbnik"},{"label":"Rodzic","email":"rodzic@example.test","role":"rodzic"}]');`
+	if _, err := d.st.DemoLoad(context.Background(), seed); err != nil {
+		t.Fatal(err)
+	}
+	login := func(email string) *client {
+		c := d.client()
+		if code, _, _ := c.post("/demo/login", url.Values{"email": {email}}); code != 303 {
+			t.Fatalf("demo login %s: %d", email, code)
+		}
+		return c
+	}
+	tr, pa := login("skarbnik@example.test"), login("rodzic@example.test")
+	if _, body, _ := tr.get("/treasurer/dashboard"); coffeeCount(body) != 1 || !strings.Contains(body, "Tryb demo") {
+		t.Fatal("demo treasurer: the link works by default")
+	}
+	if _, body, _ := pa.get("/parent"); coffeeCount(body) != 1 {
+		t.Fatal("demo parent without dues: the link works by default")
+	}
+	if _, err := d.st.CreateContribution(context.Background(), 1, "Wycieczka", 5000, nil, []int64{1}); err != nil {
+		t.Fatal(err)
+	}
+	if _, body, _ := pa.get("/parent"); coffeeCount(body) != 0 {
+		t.Fatal("demo parent with dues: no link")
+	}
+}

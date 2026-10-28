@@ -30,4 +30,5 @@
   {{if not .Data.Rows}}<p class="empty">Brak operacji do wyświetlenia</p>{{end}}
   {{if .Data.More}}<p class="center"><button class="btn btn-outline" type="button" data-ledger-more>Pokaż starsze operacje</button></p>{{else if .Data.Rows}}<p class="center small muted">Koniec historii finansowej</p>{{end}}
 </section>
+{{template "coffee" .Data.Coffee}}
 {{end}}

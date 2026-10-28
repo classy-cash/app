@@ -34,10 +34,17 @@ type Config struct {
 	Mail MailConfig
 	Bank BankConfig
 
+	// SupportURL is the voluntary "buy the author a coffee" page shown to users who owe nothing. It defaults to
+	// DefaultSupportURL in every instance (demo included); CLASSYCASH_SUPPORT_URL=off hides it, any other https URL replaces it.
+	SupportURL string
+
 	Demo      bool
 	LogLevel  string
 	TrustProx bool
 }
+
+// DefaultSupportURL is the author's voluntary-support page.
+const DefaultSupportURL = "https://suppi.pl/mleczakm"
 
 // MailConfig selects how outgoing mail is delivered.
 type MailConfig struct {
@@ -84,6 +91,7 @@ func Load(getenv func(string) string) (*Config, error) {
 		Demo:       truthy(get("DEMO_MODE", "")),
 		TrustProx:  truthy(get("TRUST_PROXY", "")),
 		ClaimToken: get("CLAIM_TOKEN", ""),
+		SupportURL: get("SUPPORT_URL", DefaultSupportURL),
 	}
 	c.SessionSecret = get("SESSION_SECRET", "")
 	var err error
@@ -115,6 +123,9 @@ func (c *Config) normalize() error {
 	}
 	if _, err := url.Parse(c.BaseURL); err != nil {
 		return fmt.Errorf("CLASSYCASH_BASE_URL: %w", err)
+	}
+	if err := c.normalizeSupportURL(); err != nil {
+		return err
 	}
 	if c.Demo {
 		// Trusted runtime configuration: a demo can never reach real mail or the bank webhook.
@@ -152,6 +163,19 @@ func (c *Config) normalize() error {
 	}
 	if c.SessionSecret == "" {
 		c.SessionSecret = "dev-only-session-secret-not-for-production"
+	}
+	return nil
+}
+
+// normalizeSupportURL accepts "off" (hide the link) or an absolute https URL without credentials.
+func (c *Config) normalizeSupportURL() error {
+	if strings.EqualFold(c.SupportURL, "off") {
+		c.SupportURL = ""
+		return nil
+	}
+	u, err := url.Parse(c.SupportURL)
+	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || strings.ContainsAny(c.SupportURL, " \t\r\n\"'<>") {
+		return errors.New("CLASSYCASH_SUPPORT_URL must be an https URL without credentials, or \"off\"")
 	}
 	return nil
 }

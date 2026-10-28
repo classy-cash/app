@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -82,5 +83,47 @@ func TestRejectsBadValues(t *testing.T) {
 		if _, err := Load(env(m)); err == nil {
 			t.Errorf("%s=%s must be rejected", k, v)
 		}
+	}
+}
+
+func TestSupportURLDefaultsToTheAuthorAndCanBeChangedOrSwitchedOff(t *testing.T) {
+	load := func(v string, demo bool) (*Config, error) {
+		m := map[string]string{"CLASSYCASH_ENV": "dev"}
+		if v != "" {
+			m["CLASSYCASH_SUPPORT_URL"] = v
+		}
+		if demo {
+			m["CLASSYCASH_DEMO_MODE"] = "1"
+		}
+		return Load(env(m))
+	}
+	for _, demo := range []bool{false, true} { // on by default in every instance, demo included
+		if c, err := load("", demo); err != nil || c.SupportURL != "https://suppi.pl/mleczakm" {
+			t.Fatalf("demo=%v default: %q %v", demo, c.SupportURL, err)
+		}
+	}
+	if c, err := load("https://example.org/kawa", false); err != nil || c.SupportURL != "https://example.org/kawa" {
+		t.Fatalf("custom: %v", err)
+	}
+	for _, off := range []string{"off", "OFF"} {
+		if c, err := load(off, false); err != nil || c.SupportURL != "" {
+			t.Fatalf("%s must hide the link: %q %v", off, c.SupportURL, err)
+		}
+	}
+	for _, bad := range []string{"http://suppi.pl/mleczakm", "suppi.pl/mleczakm", "javascript:alert(1)", "https://", "https://user:pw@suppi.pl/x", "https://suppi.pl/a b", `https://suppi.pl/"><script>`} {
+		if _, err := load(bad, false); err == nil || !strings.Contains(err.Error(), "CLASSYCASH_SUPPORT_URL") {
+			t.Errorf("%q must be rejected, got %v", bad, err)
+		}
+	}
+}
+
+// GitHub's Sponsor button must point at the same page as the in-app default.
+func TestFundingFileMatchesTheDefaultSupportURL(t *testing.T) {
+	data, err := os.ReadFile("../../.github/FUNDING.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(string(data)); got != "custom: "+DefaultSupportURL {
+		t.Fatalf("FUNDING.yml = %q", got)
 	}
 }

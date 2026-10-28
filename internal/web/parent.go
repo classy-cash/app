@@ -59,9 +59,22 @@ func (s *Server) handleParent(w http.ResponseWriter, r *http.Request) {
 		total += sp.AmountMinor
 	}
 	kids, _ := s.Store.StudentsOfParent(r.Context(), st.user.ID, st.class.ID)
-	p := s.page(r, "Konto rodzica", "home", map[string]any{"Open": open, "Paid": paid, "Total": total, "Kids": kids})
+	p := s.page(r, "Konto rodzica", "home", map[string]any{"Open": open, "Paid": paid, "Total": total, "Kids": kids, "Coffee": s.coffeeURL(r)})
 	p.Layout = "layout_parent"
 	s.render(w, r, "parent_dashboard", p, http.StatusOK)
+}
+
+// coffeeURL is the voluntary-support link, or "" when it must stay hidden: it is switched off in the configuration,
+// or the signed-in user still owes anything (in any class). A failed lookup hides it rather than risk nagging a debtor.
+func (s *Server) coffeeURL(r *http.Request) string {
+	u := state(r).user
+	if s.Cfg.SupportURL == "" || u == nil {
+		return ""
+	}
+	if owes, err := s.Store.HasOpenDues(r.Context(), u.ID); err != nil || owes {
+		return ""
+	}
+	return s.Cfg.SupportURL
 }
 
 // handlePay creates (or returns) the parent's payment code. JSON in, JSON out; used by the dialog.

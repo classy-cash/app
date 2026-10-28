@@ -141,6 +141,7 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, http.StatusInternalServerError, "Nie udało się wczytać panelu.")
 		return
 	}
+	d["Coffee"] = s.coffeeURL(r)
 	p := s.page(r, "Panel główny", "dashboard", d)
 	p.Layout = "layout_treasurer"
 	s.render(w, r, "t_dashboard", p, http.StatusOK)
