@@ -728,7 +728,7 @@ func TestCoffeeLinkAppearsOnlyForUsersWithoutDues(t *testing.T) {
 	if err != nil || contribution == 0 {
 		t.Fatal(err)
 	}
-	if _, body, _ := a.get("/parent"); coffeeCount(body) != 0 || strings.Contains(body, "postawić autorowi kawę") {
+	if _, body, _ := a.get("/parent"); coffeeCount(body) != 0 || strings.Contains(body, "autor marzy o kawie") {
 		t.Fatal("a parent with an unpaid obligation must not see the link")
 	}
 	if _, body, _ := o.get("/parent"); coffeeCount(body) != 1 {
